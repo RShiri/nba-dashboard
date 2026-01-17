@@ -1,0 +1,16 @@
+# System files
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# Environments
+.venv
+env/
+venv/
+
+# IDEs
+.vscode/
+.idea/
+
+# Note: nba_data.pkl is intentionally OMITTED from this file
+# so it can be uploaded to GitHub for the cloud app to use.
