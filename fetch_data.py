@@ -29,9 +29,8 @@ import sys
 # Constants
 PLAYER_NAME = "Deni Avdija"
 PLAYER_ID = 1630166  # Known ID for Deni Avdija
-SEASONS_SHOT_MAPS = ["2022-23", "2023-24", "2024-25", "2025-26"]
 ALL_STAR_NAMES = [
-    # User's curated elite comparison list (2025-26)
+    # Top Stars & User Requested Comparisons
     "Giannis Antetokounmpo",
     "Jaylen Brown",
     "Jalen Brunson",
@@ -42,6 +41,20 @@ ALL_STAR_NAMES = [
     "Shai Gilgeous-Alexander",
     "Nikola Jokic",
     "Victor Wembanyama",
+    # Additional Requested (Feb 2 Update)
+    "Anthony Edwards",
+    "Jamal Murray",
+    "Chet Holmgren",
+    "Kevin Durant",
+    "Devin Booker",
+    "LeBron James",
+    "Scottie Barnes",
+    "Jalen Johnson",
+    "Norman Powell",
+    "Karl-Anthony Towns",
+    "Pascal Siakam",
+    "Donovan Mitchell",
+    "Jalen Duren",
 ]
 
 OUTPUT_FILE = "nba_data.pkl"
@@ -801,8 +814,15 @@ def smart_update(force_refresh=False):
     allstar_stats_26 = existing_data.get("allstar_stats_26", pd.DataFrame())
     allstar_detailed_26 = existing_data.get("allstar_detailed_26", pd.DataFrame())
 
-    if should_update:
-        print("   🔄 Updating All-Star Race data (2025-26)...")
+    # Logic fix: Check if we actually HAVE the data before skipping
+    has_valid_race = is_valid_df(allstar_stats_26) and not allstar_stats_26.empty
+    
+    if should_update or not has_valid_race:
+        if not has_valid_race:
+            print("   ⚠️  Missing 2025-26 All-Star Race data. Fetching...")
+        else:
+            print("   🔄 Updating All-Star Race data (2025-26)...")
+            
         # Fetch stats for the SAME cohort but for current season
         new_race = fetch_allstar_stats("2025-26")
         if is_valid_df(new_race):
