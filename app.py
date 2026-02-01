@@ -84,15 +84,18 @@ def check_and_update_data():
             st.rerun()
             return
         
-        # CASE 2: Check for new games (but only every 5 minutes to avoid API spam)
+        # CASE 2: Smart schedule-based checking (only after Portland games)
         now = datetime.now()
-        should_check = True
         
         if st.session_state.last_game_check_time:
-            time_since_check = (now - st.session_state.last_game_check_time).total_seconds()
-            # Only check every 5 minutes (300 seconds)
-            if time_since_check < 300:
-                should_check = False
+            # Check if we should look for new games based on schedule
+            should_check = fetch_data.should_check_for_new_game(
+                last_check=st.session_state.last_game_check_time,
+                existing_logs=logs_25_26
+            )
+        else:
+            # First run - check once
+            should_check = True
         
         if should_check:
             # Load existing data to check game count
@@ -993,15 +996,16 @@ def main():
         if game_count > 0:
             st.sidebar.caption(f"🏀 Games tracked: **{game_count}**")
         
-        # Show next check time
-        if "last_game_check_time" in st.session_state and st.session_state.last_game_check_time:
-            next_check = st.session_state.last_game_check_time + timedelta(seconds=300)
-            time_until = (next_check - datetime.now()).total_seconds()
-            if time_until > 0:
-                mins = int(time_until // 60)
-                st.sidebar.caption(f"🔍 Next check: {mins}m {int(time_until % 60)}s")
+        # Show next game info instead of countdown
+        try:
+            next_game = fetch_data.get_next_portland_game()
+            if next_game:
+                location = "vs" if next_game['is_home'] else "@"
+                st.sidebar.caption(f"🗓️ Next game: {location} {next_game['opponent']} ({next_game['date_str']})")
             else:
-                st.sidebar.caption("🔍 Checking on next refresh...")
+                st.sidebar.caption("🗓️ No upcoming games in next 7 days")
+        except:
+            pass
     else:
         st.sidebar.warning("⚠️ No data file found")
     

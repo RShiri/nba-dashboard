@@ -484,6 +484,102 @@ def fetch_allstar_detailed_stats(season="2024-25", existing_df=None) -> pd.DataF
     return pd.DataFrame(all_stats)
 
 
+def get_next_portland_game(team_id: int = 1610612757) -> dict:
+    """
+    Fetch Portland's next scheduled game.
+    Returns dict with game info or None if no upcoming game found.
+    """
+    try:
+        # Check next 7 days
+        for days_ahead in range(7):
+            check_date = datetime.now() + timedelta(days=days_ahead)
+            d_str = check_date.strftime("%Y-%m-%d")
+            
+            board = scoreboardv2.ScoreboardV2(game_date=d_str).game_header.get_data_frame()
+            
+            if is_valid_df(board):
+                game = board[(board['HOME_TEAM_ID'] == team_id) | (board['VISITOR_TEAM_ID'] == team_id)]
+                
+                if not game.empty:
+                    row = game.iloc[0]
+                    is_home = row['HOME_TEAM_ID'] == team_id
+                    opponent_id = row['VISITOR_TEAM_ID'] if is_home else row['HOME_TEAM_ID']
+                    
+                    # Get opponent name (simplified)
+                    opponent_name = "Opponent"  # Could enhance with team lookup
+                    
+                    return {
+                        'game_date': check_date,
+                        'opponent': opponent_name,
+                        'is_home': is_home,
+                        'date_str': check_date.strftime("%b %d")
+                    }
+            
+            time.sleep(0.2)  # Be nice to API
+            
+    except Exception as e:
+        print(f"Error fetching next game: {e}")
+    
+    return None
+
+
+def should_check_for_new_game(last_check: datetime, existing_logs: pd.DataFrame, team_id: int = 1610612757) -> bool:
+    """
+    Smart logic to determine if we should check for new games.
+    Only checks if there was a recent game and enough time has passed.
+    
+    Returns True if we should check, False otherwise.
+    """
+    now = datetime.now()
+    
+    # Rule 1: Don't check more than once per hour (prevent spam)
+    if last_check:
+        hours_since_check = (now - last_check).total_seconds() / 3600
+        if hours_since_check < 1.0:
+            return False
+    
+    # Rule 2: Check if there was a game in the last 24 hours
+    try:
+        yesterday = now - timedelta(days=1)
+        
+        # Scan yesterday and today
+        for days_back in [0, 1]:
+            check_date = now - timedelta(days=days_back)
+            d_str = check_date.strftime("%Y-%m-%d")
+            
+            board = scoreboardv2.ScoreboardV2(game_date=d_str).game_header.get_data_frame()
+            
+            if is_valid_df(board):
+                game = board[(board['HOME_TEAM_ID'] == team_id) | (board['VISITOR_TEAM_ID'] == team_id)]
+                
+                if not game.empty:
+                    status = game.iloc[0]['GAME_STATUS_TEXT']
+                    
+                    # If game is final, check if enough time passed
+                    if "Final" in status:
+                        # Game finished - check if we already have it
+                        game_id = str(game.iloc[0]['GAME_ID'])
+                        
+                        if is_valid_df(existing_logs) and "GAME_ID" in existing_logs.columns:
+                            existing_ids = set(existing_logs["GAME_ID"].astype(str))
+                            if game_id in existing_ids:
+                                # We already have this game
+                                return False
+                        
+                        # We don't have it - should check!
+                        return True
+            
+            time.sleep(0.2)
+            
+    except Exception as e:
+        print(f"Error in should_check_for_new_game: {e}")
+        # On error, default to checking (safe fallback)
+        return True
+    
+    # No recent games found
+    return False
+
+
 def check_new_games(existing_logs: pd.DataFrame, team_id: int = 1610612757) -> bool:
     """
     Checks if there is a recently COMPLETED game that is missing from our logs.
