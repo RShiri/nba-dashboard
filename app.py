@@ -1709,7 +1709,35 @@ def main():
                 st.plotly_chart(plot_what_if_analysis(), width="stretch", config=PLOT_CONFIG)
 
     elif page == "About Me":
-        st.write("Created by Ram Shiri")
+        st.title("About the Creator")
+        
+        c1, c2 = st.columns([1, 2.5])
+        
+        with c1:
+            st.markdown("# 👨‍💻") # Simple avatar emoji
+            st.markdown("### Ram Shiri")
+            st.markdown("**Data Engineering Student**")
+            st.link_button("Connect on LinkedIn", "https://www.linkedin.com/in/ram-shiri-1a1056304/?originalSubdomain=il")
+        
+        with c2:
+            st.subheader("👋 Hello!")
+            st.write("""
+            I'm a **3rd year B.Sc. Data Engineering student** specializing in data science with a passion for building smart, practical solutions. 
+            I love combining creativity with technical skills to drive real-world impact—especially in the world of sports analytics.
+            """)
+            
+            st.subheader("🛠️ Skills & Approach")
+            st.write("""
+            - **Tech Stack:** Python, Java, SQL, Pandas, Streamlit, Plotly
+            - **Soft Skills:** Creative thinking, fast learning, hands-on problem solving
+            - **Philosophy:** Comfortable working with AI tools to accelerate development (like this dashboard!) while maintaining deep understanding of the core logic.
+            """)
+            
+            st.subheader("❤️ Passions")
+            st.write("🏀 Basketball | ⚽ Football | 🏎️ F1 Racing | 🧱 LEGO")
+            
+            st.divider()
+            st.info("🚀 **Open to Work:** Actively seeking a student or full-time position in software or data engineering to grow, contribute, and thrive in a dynamic environment.")
 
 if __name__ == "__main__":
     main()
