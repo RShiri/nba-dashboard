@@ -31,16 +31,17 @@ PLAYER_NAME = "Deni Avdija"
 PLAYER_ID = 1630166  # Known ID for Deni Avdija
 SEASONS_SHOT_MAPS = ["2022-23", "2023-24", "2024-25", "2025-26"]
 ALL_STAR_NAMES = [
-    # Eastern Conference Starters
-    "Jalen Brunson", "Donovan Mitchell", "Jayson Tatum", "Giannis Antetokounmpo", "Karl-Anthony Towns",
-    # Eastern Conference Reserves
-    "Jaylen Brown", "Cade Cunningham", "Darius Garland", "Tyler Herro", "Damian Lillard",
-    "Evan Mobley", "Pascal Siakam", "Trae Young",
-    # Western Conference Starters
-    "Shai Gilgeous-Alexander", "Stephen Curry", "LeBron James", "Kevin Durant", "Nikola Jokic", "Luka Doncic",
-    # Western Conference Reserves
-    "Anthony Edwards", "James Harden", "Jaren Jackson Jr.", "Jalen Williams", "Anthony Davis",
-    "Alperen Sengun", "Victor Wembanyama", "Kyrie Irving",
+    # User's curated elite comparison list (2025-26)
+    "Giannis Antetokounmpo",
+    "Jaylen Brown",
+    "Jalen Brunson",
+    "Cade Cunningham",
+    "Tyrese Maxey",
+    "Stephen Curry",
+    "Luka Doncic",
+    "Shai Gilgeous-Alexander",
+    "Nikola Jokic",
+    "Victor Wembanyama",
 ]
 
 OUTPUT_FILE = "nba_data.pkl"
@@ -802,6 +803,36 @@ def smart_update(force_refresh=False):
         with open(OUTPUT_FILE, "wb") as f:
             pickle.dump(data_dict, f)
         print(f"✅ Data saved successfully! (Keys: {list(data_dict.keys())})")
+        
+        # Auto-commit and push to Git if successful
+        try:
+            print("\n🔄 Attempting Git auto-update...")
+            import subprocess
+            from pathlib import Path
+            
+            script_dir = Path(__file__).parent
+            
+            # Run the auto_update script
+            result = subprocess.run(
+                [sys.executable, "auto_update.py"],
+                cwd=script_dir,
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+            
+            if result.returncode == 0:
+                print("✅ Git auto-update successful!")
+                print(result.stdout)
+            else:
+                print("⚠️  Git auto-update skipped or failed (this is OK if not using Git)")
+                if result.stderr:
+                    print(f"   Details: {result.stderr[:200]}")
+                    
+        except Exception as git_error:
+            print(f"⚠️  Git auto-update failed: {git_error}")
+            print("   (Data was saved successfully, only Git sync failed)")
+            
     except Exception as e:
         print(f"❌ Error saving data: {e}")
         return f"Error: {e}"

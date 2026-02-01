@@ -21,7 +21,7 @@ import pickle
 import numpy as np
 from nba_api.stats.static import players
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # -----------------------------
 # Config and constants
@@ -63,26 +63,68 @@ st.set_page_config(
 # Auto-Update Logic
 # -----------------------------
 def check_and_update_data():
-    """Checks if data is missing or stale (>6 hours) and updates it."""
+    """
+    Smart update checker that detects new games and updates data automatically.
+    Uses session state caching to prevent excessive API calls.
+    """
     try:
-        should_update = False
+        # Initialize session state for caching
+        if "last_game_check_time" not in st.session_state:
+            st.session_state.last_game_check_time = None
+            st.session_state.last_known_game_count = 0
+        
+        # CASE 1: No data file exists - fetch initial data
         if not Path(DATA_FILE).exists():
-            should_update = True
-        else:
-            # Check staleness
-            mtime = Path(DATA_FILE).stat().st_mtime
-            # check if older than 6 hours
-            if (datetime.now().timestamp() - mtime) > (6 * 3600):
-                should_update = True
-                
-        if should_update:
             status = st.empty()
-            status.info("⏳ Data is stale or missing. Auto-updating in background...")
+            status.info("⏳ No data found. Fetching initial data...")
             fetch_data.smart_update()
-            status.success("✅ Data updated!")
+            status.success("✅ Initial data loaded!")
             time.sleep(1)
             status.empty()
             st.rerun()
+            return
+        
+        # CASE 2: Check for new games (but only every 5 minutes to avoid API spam)
+        now = datetime.now()
+        should_check = True
+        
+        if st.session_state.last_game_check_time:
+            time_since_check = (now - st.session_state.last_game_check_time).total_seconds()
+            # Only check every 5 minutes (300 seconds)
+            if time_since_check < 300:
+                should_check = False
+        
+        if should_check:
+            # Load existing data to check game count
+            try:
+                with open(DATA_FILE, "rb") as f:
+                    existing_data = pickle.load(f)
+                
+                logs_25_26 = existing_data.get("game_logs_2025_26", pd.DataFrame())
+                
+                # Check if there's a new completed game
+                status = st.empty()
+                status.info("🔍 Checking for new games...")
+                
+                has_new_game = fetch_data.check_new_games(logs_25_26)
+                st.session_state.last_game_check_time = now
+                
+                if has_new_game:
+                    status.success("🎮 New game detected! Updating stats...")
+                    fetch_data.smart_update()
+                    status.success("✅ Stats updated with latest game!")
+                    time.sleep(2)
+                    status.empty()
+                    st.rerun()
+                else:
+                    # Update game count for tracking
+                    st.session_state.last_known_game_count = len(logs_25_26)
+                    status.empty()
+                    
+            except Exception as e:
+                print(f"Error checking for new games: {e}")
+                # Don't crash the app, just log the error
+                
     except Exception as e:
         print(f"Update check failed: {e}")
 
@@ -922,6 +964,48 @@ def main():
         st.success("Data updated!")
         time.sleep(1)
         st.rerun()
+    
+    # Data Status Display
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 📊 Data Status")
+    
+    if Path(DATA_FILE).exists():
+        # Show last update time
+        fetched_at = None
+        game_count = 0
+        
+        try:
+            with open(DATA_FILE, "rb") as f:
+                temp_data = pickle.load(f)
+            fetched_at = temp_data.get("fetched_at")
+            logs = temp_data.get("game_logs_2025_26", pd.DataFrame())
+            game_count = len(logs) if not logs.empty else 0
+        except:
+            pass
+        
+        if fetched_at:
+            try:
+                update_time = datetime.fromisoformat(fetched_at)
+                st.sidebar.caption(f"📅 Last updated: {update_time.strftime('%b %d, %H:%M')}")
+            except:
+                st.sidebar.caption("📅 Last updated: Recently")
+        
+        if game_count > 0:
+            st.sidebar.caption(f"🏀 Games tracked: **{game_count}**")
+        
+        # Show next check time
+        if "last_game_check_time" in st.session_state and st.session_state.last_game_check_time:
+            next_check = st.session_state.last_game_check_time + timedelta(seconds=300)
+            time_until = (next_check - datetime.now()).total_seconds()
+            if time_until > 0:
+                mins = int(time_until // 60)
+                st.sidebar.caption(f"🔍 Next check: {mins}m {int(time_until % 60)}s")
+            else:
+                st.sidebar.caption("🔍 Checking on next refresh...")
+    else:
+        st.sidebar.warning("⚠️ No data file found")
+    
+    st.sidebar.markdown("---")
 
     page = st.sidebar.radio("Navigate", ["Dashboard", "Career Analysis", "League Trends", "Raw Data", "Shot Maps", "Research: Deep Dive", "About Me"])
     
