@@ -25,9 +25,20 @@ from datetime import datetime, timedelta
 import time
 from requests.exceptions import RequestException
 import sys
+import unicodedata
 
 # Constants
 PLAYER_NAME = "Deni Avdija"
+
+def normalize_name(name):
+    """Normalize name to remove accents (e.g., Dončić -> Doncic)."""
+    if not isinstance(name, str): return ""
+    return unicodedata.normalize('NFKD', name).encode('ASCII', 'ignore').decode('utf-8')
+
+# ... (Existing constants section skipped for brevity in replacement, but wait, replace_file_content needs context)
+# I should do this in two chunks if they are far apart.
+# Imports are at lines 1-27. `fetch_allstar_stats` is ~203.
+# I will add import first.
 PLAYER_ID = 1630166  # Known ID for Deni Avdija
 ALL_STAR_NAMES = [
     # Top Stars & User Requested Comparisons
@@ -210,9 +221,13 @@ def fetch_allstar_stats(season="2024-25") -> pd.DataFrame:
             per_mode_detailed="PerGame",
         ).get_data_frames()[0]
         
-        # Filter to only All-Stars by matching player names
+        # Filter to only All-Stars by matching player names (Normalized)
+        # Create set of normalized target names for fast lookup
+        target_names = set(normalize_name(n).lower() for n in ALL_STAR_NAMES)
+        
+        # Filter
         allstar_df = league_stats[
-            league_stats["PLAYER_NAME"].isin(ALL_STAR_NAMES)
+            league_stats["PLAYER_NAME"].apply(lambda x: normalize_name(x).lower() in target_names)
         ].copy()
         
         if allstar_df.empty:
