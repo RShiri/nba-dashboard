@@ -904,7 +904,7 @@ def smart_update(force_refresh=False):
         try:
             print("\n🔄 Attempting Git auto-update...")
             import subprocess
-            from pathlib import Path
+            # Path is already imported at module level, no need to re-import
             
             script_dir = Path(__file__).parent
             
