@@ -66,6 +66,7 @@ ALL_STAR_NAMES = [
     "Pascal Siakam",
     "Donovan Mitchell",
     "Jalen Duren",
+    "Deni Avdija",  # User confirmed he was picked!
 ]
 
 OUTPUT_FILE = "nba_data.pkl"

@@ -1542,6 +1542,8 @@ def main():
 
                     # Add All-Stars Images
                     for _, row in allstar_detailed.iterrows():
+                        if row["PLAYER_NAME"] == "Deni Avdija": continue # Skip Deni
+                        
                         url = get_face_url(row["PLAYER_NAME"])
                         if url:
                             fig.add_layout_image(dict(
@@ -1552,8 +1554,10 @@ def main():
                             
                     # Invisible markers for hover
                     fig.add_trace(go.Scatter(
-                        x=allstar_detailed["USG_PCT"]*100, y=allstar_detailed["TS_PCT"]*100, 
-                        mode="markers", name="All-Stars", text=allstar_detailed["PLAYER_NAME"],
+                        x=allstar_detailed[allstar_detailed["PLAYER_NAME"] != "Deni Avdija"]["USG_PCT"]*100, 
+                        y=allstar_detailed[allstar_detailed["PLAYER_NAME"] != "Deni Avdija"]["TS_PCT"]*100, 
+                        mode="markers", name="All-Stars", 
+                        text=allstar_detailed[allstar_detailed["PLAYER_NAME"] != "Deni Avdija"]["PLAYER_NAME"],
                         marker=dict(color="rgba(0,0,0,0)", size=30), hoverinfo="text+x+y"
                     ))
 
@@ -1570,6 +1574,10 @@ def main():
                 rank_metric = st.selectbox("🏆 Rank Players By:", ["PTS", "REB", "AST", "STL", "BLK", "TOV"], index=0, key="rank_bench")
                 
                 t_df = allstar[["PLAYER_NAME", "PTS", "REB", "AST", "STL", "BLK", "TOV", "GP"]].copy()
+                
+                # Remove Deni if he exists in the fetched data (to avoid duplication with our manual row)
+                t_df = t_df[t_df["PLAYER_NAME"] != "Deni Avdija"]
+                
                 d_row = {"PLAYER_NAME": "Deni Avdija", "GP": len(logs_26)}
                 for k in ["PTS", "REB", "AST", "STL", "BLK", "TOV"]: d_row[k] = deni_stats[k]
                 
@@ -1640,6 +1648,8 @@ def main():
 
                     # Add All-Stars Images
                     for _, row in allstar_detailed_26.iterrows():
+                        if row["PLAYER_NAME"] == "Deni Avdija": continue # Skip Deni (Added manually above)
+                        
                         url = get_face_url(row["PLAYER_NAME"])
                         if url:
                             fig_race.add_layout_image(dict(
@@ -1650,8 +1660,10 @@ def main():
                             
                     # Invisible markers for hover
                     fig_race.add_trace(go.Scatter(
-                        x=allstar_detailed_26["USG_PCT"]*100, y=allstar_detailed_26["TS_PCT"]*100, 
-                        mode="markers", name="All-Stars", text=allstar_detailed_26["PLAYER_NAME"],
+                        x=allstar_detailed_26[allstar_detailed_26["PLAYER_NAME"] != "Deni Avdija"]["USG_PCT"]*100, 
+                        y=allstar_detailed_26[allstar_detailed_26["PLAYER_NAME"] != "Deni Avdija"]["TS_PCT"]*100, 
+                        mode="markers", name="All-Stars", 
+                        text=allstar_detailed_26[allstar_detailed_26["PLAYER_NAME"] != "Deni Avdija"]["PLAYER_NAME"],
                         marker=dict(color="rgba(0,0,0,0)", size=30), hoverinfo="text+x+y"
                     ))
 
@@ -1668,6 +1680,10 @@ def main():
                 rank_metric_race = st.selectbox("🏆 Rank Players By:", ["PTS", "REB", "AST", "STL", "BLK", "TOV"], index=0, key="rank_race")
                 
                 t_df_race = allstar_26[["PLAYER_NAME", "PTS", "REB", "AST", "STL", "BLK", "TOV", "GP"]].copy()
+                
+                # Remove Deni if he exists in the fetched data (to avoid duplication with our manual row)
+                t_df_race = t_df_race[t_df_race["PLAYER_NAME"] != "Deni Avdija"]
+                
                 d_row = {"PLAYER_NAME": "Deni Avdija", "GP": len(logs_26)}
                 for k in ["PTS", "REB", "AST", "STL", "BLK", "TOV"]: d_row[k] = deni_stats_race[k]
                 
