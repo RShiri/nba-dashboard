@@ -1723,6 +1723,8 @@ def main():
             st.subheader("👋 Hello!")
             st.write("""
             I'm a **3rd year B.Sc. Data Engineering student** specializing in data science with a passion for building smart, practical solutions. 
+            """)
+            st.write("""
             I love combining creativity with technical skills to drive real-world impact—especially in the world of sports analytics.
             """)
             
