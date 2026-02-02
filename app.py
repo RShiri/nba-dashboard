@@ -1714,7 +1714,7 @@ def main():
         c1, c2 = st.columns([1, 2.5])
         
         with c1:
-            st.markdown("# 👨‍💻") # Simple avatar emoji
+            st.image("profile_pic.png", caption="Ram Shiri", width=200)
             st.markdown("### Ram Shiri")
             st.markdown("**Data Engineering Student**")
             st.link_button("Connect on LinkedIn", "https://www.linkedin.com/in/ram-shiri-1a1056304/?originalSubdomain=il")
