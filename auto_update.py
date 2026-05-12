@@ -9,6 +9,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+except AttributeError:
+    pass
+
 
 def run_git_command(cmd: list, cwd: str = ".") -> tuple[bool, str]:
     """Execute a git command and return success status and output."""
