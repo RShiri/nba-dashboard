@@ -28,8 +28,23 @@ from datetime import datetime, timedelta
 # Config and constants
 # -----------------------------
 PLAYER_NAME = "Deni Avdija"
-CURRENT_SEASON = "2025-26"
 DATA_FILE = "nba_data.pkl"
+
+# Season config (dynamic — auto-rolls to 2026-27, etc. via fetch_data helpers)
+CURRENT_SEASON = fetch_data.get_current_season()
+PREV_SEASON = fetch_data.add_season(CURRENT_SEASON, -1)
+PREV2_SEASON = fetch_data.add_season(CURRENT_SEASON, -2)
+BENCHMARK_SEASON = fetch_data.BENCHMARK_SEASON  # Frozen All-Star benchmark (2024-25)
+
+
+def season_label(season: str) -> str:
+    """'2025-26' -> '25/26' for compact headings."""
+    return f"{season[2:4]}/{season[5:]}"
+
+
+def season_data_key(season: str) -> str:
+    """Pickle key for a season's game logs, e.g. '2025-26' -> 'game_logs_2025_26'."""
+    return f"game_logs_{fetch_data.season_key(season)}"
 
 # Player / branding identity
 PLAYER_ID = 1630166  # Deni Avdija (NBA stats ID)
@@ -156,7 +171,7 @@ def inject_theme():
             font-size:.72rem; font-weight:600; text-transform:uppercase;
             letter-spacing:.7px; color:var(--muted);
         }
-        [data-testid="stMetricValue"]{ font-weight:800; color:var(--text); }
+        [data-testid="stMetricValue"]{ font-weight:800; color:var(--accent); }
 
         /* Hero banner */
         .deni-hero{
@@ -176,6 +191,23 @@ def inject_theme():
         }
         .deni-hero .name{ color:var(--text); font-size:2.15rem; font-weight:800; line-height:1.05; }
         .deni-hero .sub{ color:var(--muted); font-size:.98rem; margin-top:4px; }
+
+        /* Sticky top header bar (WC2026 header.site) */
+        .topbar{
+            position:sticky; top:0; z-index:50;
+            display:flex; align-items:center; gap:12px;
+            margin:-1rem 0 18px 0; padding:12px 18px;
+            backdrop-filter:blur(10px);
+            background:rgba(11,15,26,0.82);
+            border:1px solid var(--line); border-radius:0 0 14px 14px;
+            border-top:none;
+        }
+        .topbar .dot{ width:10px; height:10px; border-radius:50%; background:var(--accent);
+            box-shadow:0 0 10px rgba(61,220,151,0.8); flex:0 0 auto; }
+        .topbar .tb-title{ font-size:1.05rem; font-weight:800; color:var(--text); letter-spacing:.2px; }
+        .topbar .tb-title span{ color:var(--accent); }
+        .topbar .tb-sub{ font-size:.72rem; color:var(--muted); margin-left:auto;
+            text-transform:uppercase; letter-spacing:1px; }
 
         /* Sidebar */
         [data-testid="stSidebar"]{
@@ -277,7 +309,7 @@ def check_and_update_data():
         try:
             with open(DATA_FILE, "rb") as f:
                 existing_data = pickle.load(f)
-            logs_25_26 = existing_data.get("game_logs_2025_26", pd.DataFrame())
+            logs_25_26 = existing_data.get(season_data_key(CURRENT_SEASON), pd.DataFrame())
         except Exception:
             pass
 
@@ -359,7 +391,7 @@ def patch_career_stats(career_df: pd.DataFrame, logs: pd.DataFrame) -> pd.DataFr
         "FT_PCT": (logs["FTM"].sum() / logs["FTA"].sum()) if logs["FTA"].sum() > 0 else 0,
     }
     
-    mask = career_df["SEASON_ID"] == "2025-26"
+    mask = career_df["SEASON_ID"] == CURRENT_SEASON
     if mask.any():
         idx = career_df.index[mask][0]
         current_gp = career_df.at[idx, "GP"]
@@ -914,7 +946,7 @@ def analytical_verdict(deni_stats: dict, allstar_df: pd.DataFrame):
     
     # 4. Context Explanation
     st.caption(f"""
-    ℹ️ **Context:** These percentages compare Deni specifically against the **2024-25 All-Star Roster**.
+    ℹ️ **Context:** These percentages compare Deni specifically against the selected **All-Star roster**.
     For example, being in the **{get_ordinal(pts_p)} percentile** means he outscores {pts_p}% of the NBA's elite.
     """)
     
@@ -1143,6 +1175,20 @@ def render_scouting_report():
 # -----------------------------
 # Hero + KPI helpers
 # -----------------------------
+def render_topbar():
+    """Sticky brand bar shown on every page (mirrors the WC2026 site header)."""
+    st.markdown(
+        """
+        <div class="topbar">
+            <span class="dot"></span>
+            <span class="tb-title">Deni Avdija <span>Analytics</span></span>
+            <span class="tb-sub">360&deg; Performance Dashboard</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def render_hero():
     """Branded hero banner for the Dashboard landing page."""
     st.markdown(
@@ -1240,7 +1286,7 @@ def main():
             with open(DATA_FILE, "rb") as f:
                 temp_data = pickle.load(f)
             fetched_at = temp_data.get("fetched_at")
-            logs = temp_data.get("game_logs_2025_26", pd.DataFrame())
+            logs = temp_data.get(season_data_key(CURRENT_SEASON), pd.DataFrame())
             game_count = len(logs) if not logs.empty else 0
         except:
             pass
@@ -1285,9 +1331,9 @@ def main():
     # Unpack
     career_basic = data.get("career_basic", pd.DataFrame())
     career_adv = data.get("career_advanced", pd.DataFrame())
-    logs_26 = data.get("game_logs_2025_26", pd.DataFrame())
-    logs_25 = data.get("game_logs_2024_25", pd.DataFrame())
-    logs_23 = data.get("game_logs_2023_24", pd.DataFrame())
+    logs_26 = data.get(season_data_key(CURRENT_SEASON), pd.DataFrame())
+    logs_25 = data.get(season_data_key(PREV_SEASON), pd.DataFrame())
+    logs_23 = data.get(season_data_key(PREV2_SEASON), pd.DataFrame())
     shot_charts = data.get("shot_charts", {})
     allstar = data.get("allstar_stats", pd.DataFrame())
     allstar_detailed = data.get("allstar_detailed_stats", pd.DataFrame())
@@ -1304,10 +1350,13 @@ def main():
     passing_df = data.get("passing_data", pd.DataFrame())
     heliocentric_df = data.get("heliocentric_data", pd.DataFrame())
     
-    # 1. Patch Career Stats 
+    # 1. Patch Career Stats
     career_basic = patch_career_stats(career_basic, logs_26)
     career_df = merge_career_frames(career_basic, career_adv)
-    
+
+    # Sticky brand bar (all pages)
+    render_topbar()
+
     # -----------------------------
     # PAGE: Dashboard
     # -----------------------------
@@ -1319,8 +1368,8 @@ def main():
         render_kpi_strip(logs_26, logs_25)
         st.divider()
 
-        # 2025-26 Season (Full Width)
-        st.subheader(f"25/26 Impact")
+        # Current season (Full Width)
+        st.subheader(f"{season_label(CURRENT_SEASON)} Impact")
         if not logs_26.empty:
             df = logs_26.sort_values("GAME_DATE")
             avg_pts = df["PTS"].mean()
@@ -1339,8 +1388,8 @@ def main():
 
         st.divider()
 
-        # 2024-25 Season (Full Width)
-        st.subheader("24/25 Impact")
+        # Previous season (Full Width)
+        st.subheader(f"{season_label(PREV_SEASON)} Impact")
         if not logs_25.empty:
             df = logs_25.sort_values("GAME_DATE")
             avg_pts = df["PTS"].mean()
@@ -1359,8 +1408,8 @@ def main():
 
         st.divider()
 
-        # 2023-24 Season (Full Width)
-        st.subheader("23/24 Impact")
+        # Season before last (Full Width)
+        st.subheader(f"{season_label(PREV2_SEASON)} Impact")
         if not logs_23.empty:
             df = logs_23.sort_values("GAME_DATE")
             avg_pts = df["PTS"].mean()
@@ -1630,8 +1679,9 @@ def main():
         c_ctrl, c_view = st.columns([1, 4])
         with c_ctrl:
             compare = st.checkbox("Compare Mode", value=False)
-            s_a = st.selectbox("Season A", ["2022-23", "2023-24", "2024-25", "2025-26"], index=3)
-            s_b = st.selectbox("Season B", ["2022-23", "2023-24", "2024-25", "2025-26"], index=2) if compare else None
+            shot_seasons = fetch_data.RECENT_SHOT_SEASONS  # oldest -> newest (current is last)
+            s_a = st.selectbox("Season A", shot_seasons, index=len(shot_seasons) - 1)
+            s_b = st.selectbox("Season B", shot_seasons, index=len(shot_seasons) - 2) if compare else None
             
             view_type = st.radio("Map Style", ["Shot Chart", "14-Zone Efficiency"], index=0, horizontal=True)
             
@@ -1684,7 +1734,7 @@ def main():
         # --- NEW SECTION: Free Throw Leaders ---
         if not league_ft.empty:
             st.divider()
-            st.subheader("🔥 2025-26 Season: Free Throw Leaders (Top 10)")
+            st.subheader(f"🔥 {CURRENT_SEASON} Season: Free Throw Leaders (Top 10)")
 
             # 0. Base Data: Top 10 by FTM (The "Leaders")
             # We filter first, then let user RE-SORT this specific group.
@@ -1737,11 +1787,14 @@ def main():
         
         
         # TABS FOR COMPARISON
-        tab_bench, tab_race = st.tabs(["Benchmark (24/25 All-Stars)", "The Race (25/26 All-Star Stats)"])
-        
-        # --- TAB 1: BENCHMARK (Frozen 24/25) ---
+        tab_bench, tab_race = st.tabs([
+            f"Benchmark ({season_label(BENCHMARK_SEASON)} All-Stars)",
+            f"The Race ({season_label(CURRENT_SEASON)} All-Star Stats)",
+        ])
+
+        # --- TAB 1: BENCHMARK (Frozen) ---
         with tab_bench:
-            st.caption("Comparing Deni's **current** stats against the **final** stats of 24/25 All-Stars.")
+            st.caption(f"Comparing Deni's **current** stats against the **final** stats of {season_label(BENCHMARK_SEASON)} All-Stars.")
             
             if not allstar.empty and not logs_26.empty:
                 # Prepare data
@@ -1750,7 +1803,7 @@ def main():
                     "STL": logs_26["STL"].mean(), "BLK": logs_26["BLK"].mean(), "TOV": logs_26["TOV"].mean(),
                 }
                 if not career_df.empty:
-                    cur = career_df[career_df["SEASON_ID"] == "2025-26"]
+                    cur = career_df[career_df["SEASON_ID"] == CURRENT_SEASON]
                     if not cur.empty:
                         deni_stats["USG_PCT"] = cur.iloc[0]["USG_PCT"]
                         deni_stats["TS_PCT"] = cur.iloc[0]["TS_PCT"]
@@ -1862,12 +1915,12 @@ def main():
                 with c_adv2:
                     st.plotly_chart(plot_offensive_engine(deni_stats, allstar), width="stretch", config=PLOT_CONFIG)
 
-        # --- TAB 2: THE RACE (25/26 Live) ---
+        # --- TAB 2: THE RACE (current-season, live) ---
         with tab_race:
-            st.caption("Comparing Deni's **current** stats against the **current (25/26)** stats of the same All-Star cohort.")
+            st.caption(f"Comparing Deni's **current** stats against the **current ({season_label(CURRENT_SEASON)})** stats of the same All-Star cohort.")
             
             if allstar_26.empty:
-                st.warning("⚠️ No 2025-26 All-Star data found. Please click 'Refresh Data' in the sidebar to fetch the latest comparison stats.")
+                st.warning(f"⚠️ No {CURRENT_SEASON} All-Star data found. Please click 'Refresh Data' in the sidebar to fetch the latest comparison stats.")
             else:
                 # Use same Deni stats
                 deni_stats_race = deni_stats.copy()
@@ -1882,14 +1935,14 @@ def main():
 
                 # 2. TRIPLE THREAT - RACE
                 st.divider()
-                st.subheader("2. The Triple Threat (25/26)")
+                st.subheader(f"2. The Triple Threat ({season_label(CURRENT_SEASON)})")
                 show_2d_race = st.toggle("Switch to 2D Bubble View", value=False, key="toggle_2d_race")
                 st.plotly_chart(plot_triple_threat(allstar_26, deni_stats_race, show_2d_race), width="stretch", config=PLOT_CONFIG)
 
                 # 3. SEPARATION CHART - RACE
                 if not allstar_detailed_26.empty:
                     st.divider()
-                    st.subheader("3. Separation Chart (25/26 Performance)")
+                    st.subheader(f"3. Separation Chart ({season_label(CURRENT_SEASON)} Performance)")
                     
                     fig_race = go.Figure()
 
@@ -1939,7 +1992,7 @@ def main():
 
                 # 4. TABLE - RACE
                 st.divider()
-                st.subheader("4. 25/26 Leaderboard")
+                st.subheader(f"4. {season_label(CURRENT_SEASON)} Leaderboard")
                 rank_metric_race = st.selectbox("🏆 Rank Players By:", ["PTS", "REB", "AST", "STL", "BLK", "TOV"], index=0, key="rank_race")
                 
                 t_df_race = allstar_26[["PLAYER_NAME", "PTS", "REB", "AST", "STL", "BLK", "TOV", "GP"]].copy()
@@ -1958,7 +2011,7 @@ def main():
 
                 # 5. Advanced Case Studies - RACE
                 st.divider()
-                st.subheader("5. Advanced Case Studies (25/26)")
+                st.subheader(f"5. Advanced Case Studies ({season_label(CURRENT_SEASON)})")
                 c_adv1r, c_adv2r = st.columns(2)
                 with c_adv1r:
                     st.plotly_chart(plot_versatility_radar(deni_stats_race, allstar_26), width="stretch", config=PLOT_CONFIG)

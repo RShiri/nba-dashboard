@@ -35,10 +35,45 @@ def normalize_name(name):
     if not isinstance(name, str): return ""
     return unicodedata.normalize('NFKD', name).encode('ASCII', 'ignore').decode('utf-8')
 
-# ... (Existing constants section skipped for brevity in replacement, but wait, replace_file_content needs context)
-# I should do this in two chunks if they are far apart.
-# Imports are at lines 1-27. `fetch_allstar_stats` is ~203.
-# I will add import first.
+
+# -----------------------------
+# Dynamic NBA season helpers
+# -----------------------------
+def get_current_season(today=None) -> str:
+    """Return the current NBA season label (e.g. '2025-26').
+
+    The NBA season tips off in October, so Oct-Dec belongs to year/(year+1)
+    and Jan-Sep belongs to (year-1)/year. This means the label auto-advances
+    to '2026-27' once October 2026 arrives — no code changes needed."""
+    d = today or datetime.now()
+    start = d.year if d.month >= 10 else d.year - 1
+    return f"{start}-{str(start + 1)[-2:]}"
+
+
+def add_season(season: str, n: int) -> str:
+    """Shift a season label by n years. add_season('2025-26', -1) -> '2024-25'."""
+    start = int(season[:4]) + n
+    return f"{start}-{str(start + 1)[-2:]}"
+
+
+def season_key(season: str) -> str:
+    """Pickle-key form of a season label. '2025-26' -> '2025_26'."""
+    return season.replace("-", "_")
+
+
+def season_start_date(season: str) -> datetime:
+    """Approx regular-season start (Oct 1 of the starting year) — a safe lower bound."""
+    return datetime(int(season[:4]), 10, 1)
+
+
+# Season configuration (auto-rolls each year; no manual edits for 2026-27, 2027-28, ...)
+CURRENT_SEASON = get_current_season()
+PREV_SEASON = add_season(CURRENT_SEASON, -1)
+PREV2_SEASON = add_season(CURRENT_SEASON, -2)
+BENCHMARK_SEASON = "2024-25"  # Frozen All-Star benchmark (deliberate historical reference)
+# Current + 3 prior seasons, oldest -> newest (used for shot charts / season pickers)
+RECENT_SHOT_SEASONS = [add_season(CURRENT_SEASON, -3), PREV2_SEASON, PREV_SEASON, CURRENT_SEASON]
+
 PLAYER_ID = 1630166  # Known ID for Deni Avdija
 ALL_STAR_NAMES = [
     # Top Stars & User Requested Comparisons
@@ -127,7 +162,7 @@ def local_patch_career_stats(career_df: pd.DataFrame, logs: pd.DataFrame) -> pd.
         "FT_PCT": (logs["FTM"].sum() / logs["FTA"].sum()) if logs["FTA"].sum() > 0 else 0,
     }
 
-    mask = career_df["SEASON_ID"] == "2025-26"
+    mask = career_df["SEASON_ID"] == CURRENT_SEASON
     if mask.any():
         idx = career_df.index[mask][0]
         # Update columns
@@ -617,7 +652,7 @@ def check_new_games(existing_logs: pd.DataFrame, team_id: int = 1610612757) -> b
     print("\n🕵️ Checking for recent completed games to sync...")
     
     # 1. Determine Start Date
-    start_date = datetime(2025, 10, 22) # Start of 25-26 Season approx
+    start_date = season_start_date(CURRENT_SEASON) # Season tip-off (auto-rolls each year)
     existing_game_ids = set()
 
     if is_valid_df(existing_logs):
@@ -713,8 +748,8 @@ def smart_update(force_refresh=False):
 
     player_id = get_player_id()
 
-    # 1b. Load existing 25-26 Logs for Comparison
-    logs_25_26 = existing_data.get("game_logs_2025_26", pd.DataFrame())
+    # 1b. Load existing current-season logs for comparison
+    logs_25_26 = existing_data.get(f"game_logs_{season_key(CURRENT_SEASON)}", pd.DataFrame())
     
     # 2. DECIDE IF WE NEED TO UPDATE
     should_update = force_refresh
@@ -724,8 +759,8 @@ def smart_update(force_refresh=False):
 
     if should_update:
         # 2a. Fetch Current Season Game Logs
-        print("\n📅 Fetching 2025-26 Game Logs (New/Forced)...")
-        new_logs = fetch_game_logs(player_id, "2025-26")
+        print(f"\n📅 Fetching {CURRENT_SEASON} Game Logs (New/Forced)...")
+        new_logs = fetch_game_logs(player_id, CURRENT_SEASON)
         if is_valid_df(new_logs):
             logs_25_26 = new_logs
         else:
@@ -743,8 +778,8 @@ def smart_update(force_refresh=False):
     # Use helper is_valid_df to ensure cache is valid
     if not should_update and "career_basic" in existing_data and is_valid_df(existing_data["career_basic"]):
         cached_df = existing_data["career_basic"]
-        # Find 2025-26 row
-        current_season_row = cached_df[cached_df["SEASON_ID"] == "2025-26"]
+        # Find current-season row
+        current_season_row = cached_df[cached_df["SEASON_ID"] == CURRENT_SEASON]
         
         if not current_season_row.empty:
             cached_gp = int(current_season_row.iloc[0]["GP"])
@@ -761,7 +796,7 @@ def smart_update(force_refresh=False):
                 career_adv = existing_data.get("career_advanced", pd.DataFrame())
                 need_career_fetch = False
         else:
-             print("   ⚠️  No 2025-26 entry in cached career stats. Forcing refresh.")
+             print(f"   ⚠️  No {CURRENT_SEASON} entry in cached career stats. Forcing refresh.")
     else:
         print("   ⚠️  Found empty or invalid career_basic in cache (or forced). Forcing refresh.")
     
@@ -770,18 +805,20 @@ def smart_update(force_refresh=False):
         career_adv = fetch_career_advanced(player_id)
         
     # 3b. Fetch previous season logs if missing
-    if not should_update and "game_logs_2024_25" in existing_data and is_valid_df(existing_data["game_logs_2024_25"]):
-        logs_24_25 = existing_data["game_logs_2024_25"]
+    prev_key = f"game_logs_{season_key(PREV_SEASON)}"
+    if not should_update and prev_key in existing_data and is_valid_df(existing_data[prev_key]):
+        logs_24_25 = existing_data[prev_key]
     else:
-        print("   ⚠️  Cached 2024-25 logs invalid/empty. Refreshing...")
-        logs_24_25 = fetch_game_logs(player_id, "2024-25")
+        print(f"   ⚠️  Cached {PREV_SEASON} logs invalid/empty. Refreshing...")
+        logs_24_25 = fetch_game_logs(player_id, PREV_SEASON)
 
-    # 3c. Fetch 2023-24 season logs (requested for history)
-    if not should_update and "game_logs_2023_24" in existing_data and is_valid_df(existing_data["game_logs_2023_24"]):
-        logs_23_24 = existing_data["game_logs_2023_24"]
+    # 3c. Fetch season-before-last logs (requested for history)
+    prev2_key = f"game_logs_{season_key(PREV2_SEASON)}"
+    if not should_update and prev2_key in existing_data and is_valid_df(existing_data[prev2_key]):
+        logs_23_24 = existing_data[prev2_key]
     else:
-        print("   ⚠️  Fetch 2023-24 logs (New history)...")
-        logs_23_24 = fetch_game_logs(player_id, "2023-24")
+        print(f"   ⚠️  Fetch {PREV2_SEASON} logs (New history)...")
+        logs_23_24 = fetch_game_logs(player_id, PREV2_SEASON)
 
     # 4. Shot Charts
     print("\n🏀 Fetching Shot Charts...")
@@ -790,14 +827,14 @@ def smart_update(force_refresh=False):
     
     # Always fetch current season if updating
     if should_update:
-        print("   🔄 Fetching 2025-26 Shot Chart (New/Forced)...")
-        shot_charts["2025-26"] = fetch_shot_data(player_id, "2025-26")
-    elif "2025-26" not in shot_charts:
-         print("   ⚠️  Missing 2025-26 shot chart? Fetching...")
-         shot_charts["2025-26"] = fetch_shot_data(player_id, "2025-26")
-    
-    # Smart fetch past seasons
-    for season in ["2022-23", "2023-24", "2024-25"]:
+        print(f"   🔄 Fetching {CURRENT_SEASON} Shot Chart (New/Forced)...")
+        shot_charts[CURRENT_SEASON] = fetch_shot_data(player_id, CURRENT_SEASON)
+    elif CURRENT_SEASON not in shot_charts:
+         print(f"   ⚠️  Missing {CURRENT_SEASON} shot chart? Fetching...")
+         shot_charts[CURRENT_SEASON] = fetch_shot_data(player_id, CURRENT_SEASON)
+
+    # Smart fetch past seasons (the 3 seasons before the current one)
+    for season in RECENT_SHOT_SEASONS[:-1]:
         # Strict check: exists in dict AND is valid
         if not should_update and season in shot_charts and is_valid_df(shot_charts[season]):
             print(f"   ♻️  Using cached {season} chart")
@@ -818,12 +855,12 @@ def smart_update(force_refresh=False):
         print(f"   ❄️  All-Star Benchmark (24-25) frozen/cached. Skipping.")
     else:
         print("   ⚠️  No All-Star Benchmark (24-25) found. Fetching (One-time)...")
-        new_bench = fetch_allstar_stats("2024-25")
+        new_bench = fetch_allstar_stats(BENCHMARK_SEASON)
         if is_valid_df(new_bench):
             allstar_stats = new_bench
             # PASS EXISTING for Benchmark (though usually we won't even be here if it's frozen)
             # But let's say we had basic stats but missing detailed?
-            allstar_detailed = fetch_allstar_detailed_stats("2024-25", existing_df=allstar_detailed)
+            allstar_detailed = fetch_allstar_detailed_stats(BENCHMARK_SEASON, existing_df=allstar_detailed)
     
     # 5b. All-Star RACE (2025-26) - Live
     print("\n🏎️  Checking All-Star Race (2025-26)...")
@@ -840,12 +877,12 @@ def smart_update(force_refresh=False):
             print("   🔄 Updating All-Star Race data (2025-26)...")
             
         # Fetch stats for the SAME cohort but for current season
-        new_race = fetch_allstar_stats("2025-26")
+        new_race = fetch_allstar_stats(CURRENT_SEASON)
         if is_valid_df(new_race):
              allstar_stats_26 = new_race
              # Only fetch detailed if basic succeeded
              # PASS EXISTING 25-26 Data to skip re-fetching known players
-             allstar_detailed_26 = fetch_allstar_detailed_stats("2025-26", existing_df=allstar_detailed_26)
+             allstar_detailed_26 = fetch_allstar_detailed_stats(CURRENT_SEASON, existing_df=allstar_detailed_26)
         else:
              print("   ⚠️  Race fetch failed (maybe season too early?). Keeping old data.")
     else:
@@ -859,7 +896,7 @@ def smart_update(force_refresh=False):
     # We want to force refresh it if we are doing a general update as it changes often
     # But let's assume if we are running this script, we want the latest FT leaderboard.
     if should_update:
-        new_league_ft = fetch_league_ft_stats("2025-26")
+        new_league_ft = fetch_league_ft_stats(CURRENT_SEASON)
         if is_valid_df(new_league_ft):
             league_ft = new_league_ft
         elif is_valid_df(league_ft):
@@ -875,33 +912,33 @@ def smart_update(force_refresh=False):
     heliocentric_df = existing_data.get("heliocentric_data", pd.DataFrame())
     
     if should_update:
-        drives_df = fetch_drives_data("2025-26")
-        misc_df = fetch_misc_stats("2025-26")
-        passing_df = fetch_passing_data("2025-26")
-        heliocentric_df = fetch_team_star_dependence("2025-26")
+        drives_df = fetch_drives_data(CURRENT_SEASON)
+        misc_df = fetch_misc_stats(CURRENT_SEASON)
+        passing_df = fetch_passing_data(CURRENT_SEASON)
+        heliocentric_df = fetch_team_star_dependence(CURRENT_SEASON)
     else:
         # Granular checks - only fetch what is missing
         if drives_df.empty:
             print("   ⚠️  Missing Drives data, fetching...")
-            drives_df = fetch_drives_data("2025-26")
+            drives_df = fetch_drives_data(CURRENT_SEASON)
         else:
              print("   ♻️  Drives data cached.")
 
         if misc_df.empty:
             print("   ⚠️  Missing Misc data, fetching...")
-            misc_df = fetch_misc_stats("2025-26")
+            misc_df = fetch_misc_stats(CURRENT_SEASON)
         else:
              print("   ♻️  Misc data cached.")
 
         if passing_df.empty:
             print("   ⚠️  Missing Passing data, fetching...")
-            passing_df = fetch_passing_data("2025-26")
+            passing_df = fetch_passing_data(CURRENT_SEASON)
         else:
              print("   ♻️  Passing data cached.")
 
         if heliocentric_df.empty:
             print("   ⚠️  Missing Heliocentric data, fetching...")
-            heliocentric_df = fetch_team_star_dependence("2025-26")
+            heliocentric_df = fetch_team_star_dependence(CURRENT_SEASON)
         else:
              print("   ♻️  Heliocentric data cached.")
 
@@ -909,11 +946,10 @@ def smart_update(force_refresh=False):
     data_dict = {
         "career_basic": career_basic,
         "career_advanced": career_adv,
-        "game_logs_2025_26": logs_25_26,
-        "game_logs_2024_25": logs_24_25,
-        "game_logs_2023_24": logs_23_24,
+        f"game_logs_{season_key(CURRENT_SEASON)}": logs_25_26,
+        f"game_logs_{season_key(PREV_SEASON)}": logs_24_25,
+        f"game_logs_{season_key(PREV2_SEASON)}": logs_23_24,
         "shot_charts": shot_charts,
-        "allstar_stats": allstar_stats,
         "allstar_stats": allstar_stats,
         "allstar_detailed_stats": allstar_detailed,
         "allstar_stats_26": allstar_stats_26,
