@@ -696,11 +696,11 @@ def create_zone_efficiency_map(shot_df: pd.DataFrame, season: str) -> go.Figure:
             fill_color = "rgba(220, 220, 220, 0.4)" # Gray
             # Don't draw text for empty
         
-        # Plot Polygon
+        # Plot Polygon (white outline so each zone reads as a distinct section, NBA.com style)
         fig.add_trace(go.Scatter(
             x=z["x"], y=z["y"],
             fill="toself", mode="lines",
-            line=dict(color=fill_color, width=1), # Match stroke to fill to hide anti-alias gaps
+            line=dict(color="rgba(255,255,255,0.9)", width=1.6),
             fillcolor=fill_color,
             hoverinfo="text",
             text=hover_text,
