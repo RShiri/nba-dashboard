@@ -52,6 +52,10 @@ HEADSHOT_URL = f"https://cdn.nba.com/headshots/nba/latest/1040x760/{PLAYER_ID}.p
 TEAM_FULL = "Portland Trail Blazers"
 TEAM_PRIMARY = "#E03A3E"  # Blazers red
 
+# Project links
+REPO_URL = "https://github.com/RShiri/nba-dashboard"
+LINKEDIN_URL = "https://www.linkedin.com/in/ram-shiri-1a1056304/?originalSubdomain=il"
+
 # Colorblind-Safe Color Palette
 COLOR_POSITIVE = "#2c7bb6"  # Strong Blue (PTS)
 COLOR_NEGATIVE = "#d7191c"  # Strong Red-Orange
@@ -1317,7 +1321,13 @@ def main():
     st.sidebar.markdown("---")
 
     page = st.sidebar.radio("Navigate", ["Dashboard", "Career Analysis", "League Trends", "Raw Data", "Shot Maps", "Research: Deep Dive", "About Me"])
-    
+
+    st.sidebar.markdown("---")
+    st.sidebar.markdown(
+        f"<a href='{REPO_URL}' target='_blank' style='color:#3ddc97;text-decoration:none;font-weight:600;'>⭐ View source on GitHub</a>",
+        unsafe_allow_html=True,
+    )
+
     # Get mtime to force cache invalidation on update
     mtime = 0
     if Path(DATA_FILE).exists():
@@ -2033,7 +2043,8 @@ def main():
             st.image("profile_pic.png", caption="Ram Shiri", width=200)
             st.markdown("### Ram Shiri")
             st.markdown("**Data Engineering Student**")
-            st.link_button("Connect on LinkedIn", "https://www.linkedin.com/in/ram-shiri-1a1056304/?originalSubdomain=il")
+            st.link_button("Connect on LinkedIn", LINKEDIN_URL)
+            st.link_button("⭐ View Source on GitHub", REPO_URL)
         
         with c2:
             st.subheader("👋 Hello!")
