@@ -2,6 +2,8 @@
 
 > **Real-time NBA performance analytics for Deni Avdija** - Automatically updated after every game
 
+### 🔗 Live demo: **https://nba-dashboard-ramshiri.streamlit.app/**
+
 [![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=Streamlit&logoColor=white)](https://share.streamlit.io/)
 [![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![NBA API](https://img.shields.io/badge/NBA-API-orange?style=for-the-badge)](https://github.com/swar/nba_api)
@@ -9,11 +11,22 @@
 ## 🌟 Features
 
 ### 📊 Comprehensive Analytics
+- **At-a-glance KPI cards** - Season PPG / RPG / APG / MIN / FG% / 3P% / FT% / GP with season-over-season deltas
 - **Career Progression** - Track Deni's evolution across all NBA seasons
-- **Shot Maps** - Hexbin heat maps and zone efficiency visualization
-- **Elite Comparison** - Head-to-head stats vs. 11 curated superstars
-- **League Trends** - Advanced metrics (drives, and-ones, heliocentric analysis)
+- **Shot Maps** - Scatter shot charts and 14-zone efficiency visualization
+- **Elite Comparison** - Head-to-head stats vs. a curated All-Star cohort (frozen 24/25 benchmark **and** live current-season "race")
+- **League Trends** - Advanced metrics (drives, fouls drawn, heliocentric analysis)
 - **Deep Dive Research** - Triple Threat charts, usage-adjusted projections
+
+### 🎨 Design
+- **Dark theme** matching the [WC2026 dashboard](https://rshiri.github.io/XWORLDCUPTWIT/wc2026_dashboard/) — navy `#0b0f1a`, green accent `#3ddc97`
+- Configured in [`.streamlit/config.toml`](.streamlit/config.toml) + a custom CSS layer + a unified dark Plotly template
+- Hero banner, sticky top brand bar, gradient stat cards, pill tabs, styled sidebar player card
+
+### 🗓️ Season-Proof (auto-rolls each year)
+- The current NBA season is **computed from the date**, not hardcoded — it auto-advances to `2026-27` the moment October 2026 arrives, then `2027-28`, and so on
+- Game logs, shot charts, the All-Star "race", league leaderboards, and all on-screen labels follow automatically — **no code edits needed** at season turnover
+- The `2024-25` All-Star **benchmark** stays frozen on purpose as a fixed reference point
 
 ### 🤖 Fully Automated
 - ✅ **Auto-detects new games** using Portland's schedule
@@ -25,6 +38,7 @@
 - **Schedule-aware checking** - Only checks after Portland games (not every 5 minutes)
 - **Intelligent caching** - Prevents excessive API calls
 - **Error handling** - Graceful fallbacks if APIs fail
+- **Offline/CI mode** - Set `SKIP_AUTO_UPDATE=1` to skip the on-load network check (used for local previews and tests)
 
 ---
 
@@ -52,6 +66,8 @@
    ```bash
    python -m streamlit run app.py
    ```
+   > On Windows, if `python` opens the Microsoft Store, use the launcher instead: `py -m streamlit run app.py`.
+   > To preview offline without the on-load NBA API check: `SKIP_AUTO_UPDATE=1 py -m streamlit run app.py` (PowerShell: `$env:SKIP_AUTO_UPDATE=1; py -m streamlit run app.py`).
 
 5. **Open in browser**
    - Navigate to `http://localhost:8501`
@@ -62,13 +78,15 @@
 
 ```
 nba-dashboard/
-├── app.py                  # Main Streamlit dashboard
-├── fetch_data.py           # NBA API data fetcher with auto-update logic
-├── auto_update.py          # Git automation script
-├── nba_data.pkl            # Cached NBA data (auto-generated)
-├── requirements.txt        # Python dependencies
-├── DEPLOYMENT_GUIDE.md     # Streamlit Cloud deployment instructions
-└── README.md               # This file
+├── app.py                     # Main Streamlit dashboard (theme + dynamic seasons)
+├── fetch_data.py              # NBA API data fetcher + auto-update & season logic
+├── auto_update.py             # Git automation script
+├── nba_data.pkl               # Cached NBA data (auto-generated)
+├── requirements.txt           # Python dependencies
+├── .streamlit/config.toml     # Dark theme (WC2026 palette)
+├── profile_pic.png            # About Me photo
+├── DEPLOYMENT_GUIDE.md        # Streamlit Cloud deployment instructions
+└── README.md                  # This file
 ```
 
 ---
@@ -98,35 +116,40 @@ The dashboard only checks for new games when:
 
 This reduces API calls from **~288/day** to **~2-3/day** (only on game days).
 
+### Dynamic Season Detection
+
+The "current season" is derived from today's date by `fetch_data.get_current_season()`:
+
+| Months | Season resolved |
+|--------|-----------------|
+| October → December | `YEAR-(YEAR+1)` (e.g. Oct 2026 → `2026-27`) |
+| January → September | `(YEAR-1)-YEAR` (e.g. Mar 2027 → `2026-27`) |
+
+Because the season string, pickle keys (`game_logs_2026_27`, …), the season tip-off date, and every UI label are all derived from this helper, **the app rolls into 2026-27 (and beyond) with zero code changes** — the scraper simply starts fetching the new season once games are played. The previous two seasons are kept for the Dashboard's three "Impact" panels; the `2024-25` All-Star benchmark is frozen.
+
 ---
 
 ## 🎨 Dashboard Pages
 
 | Page | Description |
 |------|-------------|
-| **Dashboard** | Season overview with key stats and trends |
-| **Career Analysis** | Multi-season progression charts |
-| **League Trends** | Advanced metrics (drives, and-ones, heliocentric) |
-| **Shot Maps** | Interactive court visualizations |
-| **Research: Deep Dive** | Elite comparisons and projections |
-| **Raw Data** | Exportable data tables |
+| **Dashboard** | Hero header, KPI cards (with season deltas), and per-game impact charts for the last three seasons |
+| **Career Analysis** | Multi-season progression: per-game, per-36, usage rate, true shooting |
+| **League Trends** | Advanced metrics (heliocentric offense, sniper finders, foul magnets, rim pressure) |
+| **Shot Maps** | Shot charts + 14-zone efficiency, single or side-by-side compare |
+| **Research: Deep Dive** | Frozen 24/25 benchmark **and** live current-season All-Star race, plus projections |
+| **Raw Data** | Custom trend viewer and exportable career table |
+| **About Me** | Creator profile |
 
 ---
 
-## 🏆 Elite Comparison List
+## 🏆 Elite Comparison Cohort
 
-Deni's stats are compared against these 11 superstars:
+Deni's stats are compared against a curated cohort of All-Stars & risers, defined by `ALL_STAR_NAMES` in [`fetch_data.py`](fetch_data.py). Current members:
 
-- Giannis Antetokounmpo
-- Jaylen Brown
-- Jalen Brunson
-- Cade Cunningham
-- Tyrese Maxey
-- Stephen Curry
-- Luka Dončić
-- Shai Gilgeous-Alexander
-- Nikola Jokić
-- Victor Wembanyama
+Giannis Antetokounmpo · Jaylen Brown · Jalen Brunson · Cade Cunningham · Tyrese Maxey · Stephen Curry · Luka Dončić · Shai Gilgeous-Alexander · Nikola Jokić · Victor Wembanyama · Anthony Edwards · Jamal Murray · Chet Holmgren · Kevin Durant · Devin Booker · LeBron James · Scottie Barnes · Jalen Johnson · Norman Powell · Karl-Anthony Towns · Pascal Siakam · Donovan Mitchell · Jalen Duren
+
+> Edit that list to change who Deni is benchmarked against. The **benchmark tab** freezes this cohort's 2024-25 numbers; the **race tab** shows the same cohort's current-season numbers.
 
 ---
 
@@ -147,8 +170,10 @@ Deni's stats are compared against these 11 superstars:
 streamlit
 pandas
 plotly
-nba_api
 numpy
+matplotlib
+nba_api
+requests
 ```
 
 ---
@@ -198,6 +223,22 @@ Edit `fetch_data.py` in `should_check_for_new_game()`:
 # Change minimum hours between checks
 if hours_since_check < 1.0:  # Default: 1 hour
     return False
+```
+
+### Seasons (automatic)
+
+You **don't** need to bump season strings each year — they are computed dynamically:
+
+```python
+CURRENT_SEASON = get_current_season()      # e.g. "2025-26", then "2026-27" after Oct 2026
+PREV_SEASON    = add_season(CURRENT_SEASON, -1)
+BENCHMARK_SEASON = "2024-25"               # frozen All-Star benchmark (change only if you want a new baseline)
+```
+
+### Offline / CI Mode
+
+```bash
+SKIP_AUTO_UPDATE=1 py -m streamlit run app.py   # skips the on-load NBA API check
 ```
 
 ---

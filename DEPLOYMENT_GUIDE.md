@@ -15,6 +15,8 @@ You need to upload the following files to your new repository:
 *   `fetch_data.py` (The data fetcher)
 *   `nba_data.pkl` (Your data file - **Crucial!**)
 *   `requirements.txt` (List of libraries)
+*   `.streamlit/config.toml` (Dark theme — **needed for the correct look on Streamlit Cloud**)
+*   `profile_pic.png` (About Me photo)
 *   `.gitignore` (Optional config)
 
 **How to upload via Browser:**
@@ -39,7 +41,14 @@ You need to upload the following files to your new repository:
 
 ## 💡 Updating Data in the Future
 To update the stats on the live site:
-1.  Run `fetch_data.py` locally on your computer to get fresh 2025-26 data.
-2.  This updates your local `nba_data.pkl`.
-3.  Upload the NEW `nba_data.pkl` to your GitHub repository (replace the old one).
-4.  Streamlit Cloud will detect the change and restart the app automatically with fresh data!
+1.  Run the fetcher locally to get fresh data for the **current season** (auto-detected — no season string to edit):
+    ```bash
+    python fetch_data.py      # Windows: py fetch_data.py
+    ```
+2.  This updates your local `nba_data.pkl` (and, if Git is configured, `auto_update.py` commits & pushes it for you).
+3.  Otherwise, commit/upload the NEW `nba_data.pkl` to GitHub (replace the old one).
+4.  Streamlit Cloud detects the push and **auto-redeploys** in ~1–3 minutes with fresh data — the URL stays the same.
+
+> 🗓️ **Season rollover is automatic.** When the 2026-27 season (or any later one) begins, the same command fetches the new season's game logs, shot charts, All-Star race, and league tables — and the dashboard labels roll forward on their own. No code changes required.
+
+> 🔐 **Push auth note:** on Windows the first `git push` may open a **GitHub sign-in window** (Git Credential Manager). Complete it once and the credentials are cached for future pushes.
