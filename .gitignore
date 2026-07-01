@@ -11,6 +11,7 @@ venv/
 # IDEs
 .vscode/
 .idea/
+.claude/
 
 # Note: nba_data.pkl is intentionally OMITTED from this file
 # so it can be uploaded to GitHub for the cloud app to use.

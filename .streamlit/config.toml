@@ -1,0 +1,11 @@
+# Deni Avdija Analytics — dark theme (matches the WC2026 dashboard)
+[theme]
+base = "dark"
+primaryColor = "#3ddc97"
+backgroundColor = "#0b0f1a"
+secondaryBackgroundColor = "#161d31"
+textColor = "#e8edf7"
+font = "sans serif"
+
+[client]
+showErrorDetails = true

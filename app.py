@@ -13,6 +13,7 @@ Features:
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
+import plotly.io as pio
 import streamlit as st
 import os
 import time
@@ -29,6 +30,12 @@ from datetime import datetime, timedelta
 PLAYER_NAME = "Deni Avdija"
 CURRENT_SEASON = "2025-26"
 DATA_FILE = "nba_data.pkl"
+
+# Player / branding identity
+PLAYER_ID = 1630166  # Deni Avdija (NBA stats ID)
+HEADSHOT_URL = f"https://cdn.nba.com/headshots/nba/latest/1040x760/{PLAYER_ID}.png"
+TEAM_FULL = "Portland Trail Blazers"
+TEAM_PRIMARY = "#E03A3E"  # Blazers red
 
 # Colorblind-Safe Color Palette
 COLOR_POSITIVE = "#2c7bb6"  # Strong Blue (PTS)
@@ -52,8 +59,183 @@ PLOT_CONFIG = {
 
 st.set_page_config(
     page_title="Deni Avdija Analytics",
+    page_icon="🏀",
     layout="wide",
+    initial_sidebar_state="expanded",
+    menu_items={
+        "About": "Deni Avdija 360° Performance Analytics Dashboard — built by Ram Shiri."
+    },
 )
+
+
+# -----------------------------
+# Unified Plotly theme
+# -----------------------------
+def _install_plotly_theme():
+    """Register a dark, on-brand Plotly template (matches the WC2026 dashboard)."""
+    base = pio.templates["plotly_dark"]
+    base.layout.paper_bgcolor = "rgba(0,0,0,0)"   # transparent -> shows the card behind
+    base.layout.plot_bgcolor = "rgba(0,0,0,0)"
+    base.layout.font.family = "Segoe UI, system-ui, -apple-system, Roboto, Arial, sans-serif"
+    base.layout.font.color = "#e8edf7"
+    base.layout.font.size = 13
+    base.layout.title.font.family = "Segoe UI, system-ui, sans-serif"
+    base.layout.title.font.size = 18
+    base.layout.title.font.color = "#e8edf7"
+    base.layout.colorway = [
+        "#3ddc97", "#4ea1ff", "#ffb454", "#ff6b81", "#a78bfa", "#e8edf7", "#93a0bd",
+    ]
+    base.layout.hoverlabel.font.family = "Segoe UI, sans-serif"
+    base.layout.hoverlabel.bgcolor = "#161d31"
+    base.layout.hoverlabel.bordercolor = "#26304d"
+    base.layout.xaxis.gridcolor = "#26304d"
+    base.layout.yaxis.gridcolor = "#26304d"
+    base.layout.xaxis.zerolinecolor = "#26304d"
+    base.layout.yaxis.zerolinecolor = "#26304d"
+    base.layout.xaxis.linecolor = "#26304d"
+    base.layout.yaxis.linecolor = "#26304d"
+    pio.templates.default = "plotly_dark"
+    px.defaults.template = "plotly_dark"
+
+
+_install_plotly_theme()
+
+
+# -----------------------------
+# Custom CSS design layer
+# -----------------------------
+def inject_theme():
+    st.markdown(
+        """
+        <style>
+        :root{
+            --bg:#0b0f1a; --bg-2:#121829; --card:#161d31; --card-2:#1b2440;
+            --line:#26304d; --text:#e8edf7; --muted:#93a0bd;
+            --accent:#3ddc97; --accent-2:#4ea1ff; --warn:#ffb454; --bad:#ff6b81;
+            --shadow:0 8px 28px rgba(0,0,0,0.35); --radius:14px;
+        }
+
+        html, body, [class*="css"], .stMarkdown, .stMetric, .stTabs, button, input, select, textarea {
+            font-family:"Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+        }
+
+        /* App background: navy radial gradient (matches WC2026) */
+        [data-testid="stAppViewContainer"]{
+            background: radial-gradient(1200px 600px at 80% -10%, #16203a 0%, var(--bg) 55%) fixed;
+        }
+        [data-testid="stHeader"]{ background: rgba(0,0,0,0); }
+        .block-container{ padding-top:2.2rem; padding-bottom:3rem; max-width:1260px; }
+
+        /* Headings */
+        h1{ font-weight:800 !important; letter-spacing:.2px; color:var(--text); }
+        h2, h3{ font-weight:700 !important; color:var(--text); }
+        p, span, label, li{ color:var(--text); }
+
+        /* Section subheaders get a small green accent bar */
+        [data-testid="stHeading"] h3{ position:relative; padding-left:12px; }
+        [data-testid="stHeading"] h3::before{
+            content:""; position:absolute; left:0; top:5px; bottom:5px;
+            width:4px; border-radius:4px; background:var(--accent);
+        }
+
+        /* Metric cards -> WC2026 ".stat" style */
+        [data-testid="stMetric"]{
+            background: linear-gradient(180deg, var(--card-2), var(--card));
+            border:1px solid var(--line);
+            border-radius:var(--radius);
+            padding:16px 18px;
+            box-shadow:var(--shadow);
+            transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+        }
+        [data-testid="stMetric"]:hover{
+            transform:translateY(-2px);
+            border-color:var(--accent);
+            box-shadow:0 10px 26px rgba(61,220,151,0.14);
+        }
+        [data-testid="stMetricLabel"] p{
+            font-size:.72rem; font-weight:600; text-transform:uppercase;
+            letter-spacing:.7px; color:var(--muted);
+        }
+        [data-testid="stMetricValue"]{ font-weight:800; color:var(--text); }
+
+        /* Hero banner */
+        .deni-hero{
+            display:flex; align-items:center; gap:22px;
+            background: linear-gradient(120deg, #101830 0%, #14233f 55%, #123a34 130%);
+            border:1px solid var(--line);
+            border-radius:18px; padding:22px 28px; margin:0 0 20px 0;
+            box-shadow:var(--shadow);
+        }
+        .deni-hero img{
+            height:104px; width:104px; border-radius:50%; object-fit:cover;
+            border:3px solid var(--accent); background:#0b0f1a; flex:0 0 auto;
+        }
+        .deni-hero .kicker{
+            color:var(--accent); font-size:.72rem; font-weight:700; letter-spacing:2.5px;
+            text-transform:uppercase; margin-bottom:2px;
+        }
+        .deni-hero .name{ color:var(--text); font-size:2.15rem; font-weight:800; line-height:1.05; }
+        .deni-hero .sub{ color:var(--muted); font-size:.98rem; margin-top:4px; }
+
+        /* Sidebar */
+        [data-testid="stSidebar"]{
+            background: linear-gradient(180deg, #0d1322 0%, #0b0f1a 100%);
+            border-right:1px solid var(--line);
+        }
+        .sb-card{
+            text-align:center; padding:16px 10px 10px; margin-bottom:8px;
+            background: linear-gradient(160deg, var(--card-2), var(--card));
+            border:1px solid var(--line);
+            border-radius:16px; box-shadow:var(--shadow);
+        }
+        .sb-card img{
+            height:84px; width:84px; border-radius:50%; object-fit:cover;
+            border:3px solid var(--accent); background:#0b0f1a;
+        }
+        .sb-card .sb-name{ color:var(--text); font-weight:700; font-size:1.05rem; margin-top:8px; }
+        .sb-card .sb-role{ color:var(--accent); font-size:.72rem; letter-spacing:1px; text-transform:uppercase; }
+
+        /* Buttons */
+        .stButton > button{
+            border-radius:10px; font-weight:600;
+            background:var(--card); color:var(--text); border:1px solid var(--line);
+            transition:all .14s ease;
+        }
+        .stButton > button:hover{
+            border-color:var(--accent); color:var(--accent);
+            box-shadow:0 4px 14px rgba(61,220,151,0.18);
+        }
+
+        /* Tabs -> pill style, active = green */
+        .stTabs [data-baseweb="tab-list"]{ gap:6px; border-bottom:1px solid var(--line); }
+        .stTabs [data-baseweb="tab"]{
+            border-radius:10px; padding:8px 16px; font-weight:600; color:var(--muted);
+        }
+        .stTabs [data-baseweb="tab"]:hover{ color:var(--text); background:var(--card); }
+        .stTabs [aria-selected="true"]{
+            color:#0b0f1a !important; background:var(--accent);
+            box-shadow:0 4px 14px rgba(61,220,151,0.3);
+        }
+
+        /* Inputs / selects */
+        [data-baseweb="select"] > div, .stTextInput input, .stNumberInput input{
+            background:var(--card) !important; border-color:var(--line) !important;
+        }
+
+        /* Dataframes: rounded dark frame */
+        [data-testid="stDataFrame"]{ border-radius:12px; overflow:hidden; border:1px solid var(--line); }
+
+        /* Alert boxes blend with the dark theme */
+        [data-testid="stAlert"]{ border-radius:12px; border:1px solid var(--line); }
+
+        hr{ border-color:var(--line); }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+inject_theme()
 
 
 # -----------------------------
@@ -67,6 +249,9 @@ def check_and_update_data():
     Smart update checker that detects new games and updates data automatically.
     Uses session state caching to prevent excessive API calls.
     """
+    # Allow disabling the on-load network check (useful for offline/local previews & CI).
+    if os.environ.get("SKIP_AUTO_UPDATE") == "1":
+        return
     try:
         # Initialize session state for caching
         if "last_game_check_time" not in st.session_state:
@@ -87,24 +272,23 @@ def check_and_update_data():
         # CASE 2: Smart schedule-based checking (only after Portland games)
         now = datetime.now()
         
-        if st.session_state.last_game_check_time:
-            # Check if we should look for new games based on schedule
-            should_check = fetch_data.should_check_for_new_game(
-                last_check=st.session_state.last_game_check_time,
-                existing_logs=logs_25_26
-            )
-        else:
-            # First run - check once
-            should_check = True
+        # Load existing data to check logs
+        logs_25_26 = pd.DataFrame()
+        try:
+            with open(DATA_FILE, "rb") as f:
+                existing_data = pickle.load(f)
+            logs_25_26 = existing_data.get("game_logs_2025_26", pd.DataFrame())
+        except Exception:
+            pass
+
+        # Check if we should look for new games based on schedule (last 24-48h)
+        should_check = fetch_data.should_check_for_new_game(
+            last_check=st.session_state.last_game_check_time,
+            existing_logs=logs_25_26
+        )
         
         if should_check:
-            # Load existing data to check game count
             try:
-                with open(DATA_FILE, "rb") as f:
-                    existing_data = pickle.load(f)
-                
-                logs_25_26 = existing_data.get("game_logs_2025_26", pd.DataFrame())
-                
                 # Check if there's a new completed game
                 status = st.empty()
                 status.info("🔍 Checking for new games...")
@@ -513,17 +697,17 @@ def draw_nba_court(fig=None):
     if fig is None: fig = go.Figure()
     shapes = []
     # Outer
-    shapes.append(dict(type="rect", x0=-250, y0=-47.5, x1=250, y1=422.5, line=dict(color="black", width=2)))
+    shapes.append(dict(type="rect", x0=-250, y0=-47.5, x1=250, y1=422.5, line=dict(color="#8ea0c0", width=2)))
     # Paint
-    shapes.append(dict(type="rect", x0=-80, y0=-47.5, x1=80, y1=142.5, line=dict(color="black", width=2)))
-    shapes.append(dict(type="rect", x0=-60, y0=-47.5, x1=60, y1=142.5, line=dict(color="black", width=2)))
+    shapes.append(dict(type="rect", x0=-80, y0=-47.5, x1=80, y1=142.5, line=dict(color="#8ea0c0", width=2)))
+    shapes.append(dict(type="rect", x0=-60, y0=-47.5, x1=60, y1=142.5, line=dict(color="#8ea0c0", width=2)))
     # Hoop
     shapes.append(dict(type="circle", x0=-7.5, y0=-7.5, x1=7.5, y1=7.5, line=dict(color="#ec7607", width=2)))
-    shapes.append(dict(type="line", x0=-30, y0=-40, x1=30, y1=-40, line=dict(color="black", width=2)))
+    shapes.append(dict(type="line", x0=-30, y0=-40, x1=30, y1=-40, line=dict(color="#8ea0c0", width=2)))
     shapes.append(dict(type="line", x0=0, y0=-40, x1=0, y1=-7.5, line=dict(color="#ec7607", width=2)))
     # 3PT
-    shapes.append(dict(type="line", x0=-220, y0=-47.5, x1=-220, y1=92.5, line=dict(color="black", width=2)))
-    shapes.append(dict(type="line", x0=220, y0=-47.5, x1=220, y1=92.5, line=dict(color="black", width=2)))
+    shapes.append(dict(type="line", x0=-220, y0=-47.5, x1=-220, y1=92.5, line=dict(color="#8ea0c0", width=2)))
+    shapes.append(dict(type="line", x0=220, y0=-47.5, x1=220, y1=92.5, line=dict(color="#8ea0c0", width=2)))
     # Arcs
     arc_x = []
     arc_y = []
@@ -534,19 +718,20 @@ def draw_nba_court(fig=None):
             if y > 92.5:
                 arc_x.append(x)
                 arc_y.append(y)
-    fig.add_trace(go.Scatter(x=arc_x, y=arc_y, mode="lines", line=dict(color="black", width=2), showlegend=False, hoverinfo="skip"))
+    fig.add_trace(go.Scatter(x=arc_x, y=arc_y, mode="lines", line=dict(color="#8ea0c0", width=2), showlegend=False, hoverinfo="skip"))
     
     # Center Circle (Half)
     cc_x = [60 * np.cos(t) for t in np.linspace(0, np.pi, 50)]
     cc_y = [422.5 + 60 * np.sin(t) for t in np.linspace(0, np.pi, 50)]
-    fig.add_trace(go.Scatter(x=cc_x, y=cc_y, mode="lines", line=dict(color="black", width=2), showlegend=False, hoverinfo="skip"))
+    fig.add_trace(go.Scatter(x=cc_x, y=cc_y, mode="lines", line=dict(color="#8ea0c0", width=2), showlegend=False, hoverinfo="skip"))
 
     # STRICT LAYOUT FOR IDENTICAL SIZING
     fig.update_layout(
         shapes=shapes,
         xaxis=dict(range=[-250, 250], showgrid=False, zeroline=False, visible=False, fixedrange=True),
         yaxis=dict(range=[-47.5, 422.5], scaleanchor="x", scaleratio=1, showgrid=False, zeroline=False, visible=False, fixedrange=True),
-        plot_bgcolor="#f8f8f8",
+        plot_bgcolor="#0e1524",
+        paper_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=0,r=0,t=25,b=0),
         width=650, height=600, # Fixed dimensions
         autosize=False
@@ -684,7 +869,7 @@ def plot_triple_threat(allstar_df: pd.DataFrame, deni_stats: dict, is_2d: bool =
         mode="text",
         text=["Deni"],
         textposition="bottom center",
-        textfont=dict(size=14, color="black", family="Arial Black")
+        textfont=dict(size=14, color="#e8edf7", family="Arial Black")
     ))
 
     fig.update_layout(
@@ -956,11 +1141,85 @@ def render_scouting_report():
 
 
 # -----------------------------
+# Hero + KPI helpers
+# -----------------------------
+def render_hero():
+    """Branded hero banner for the Dashboard landing page."""
+    st.markdown(
+        f"""
+        <div class="deni-hero">
+            <img src="{HEADSHOT_URL}" alt="Deni Avdija" />
+            <div>
+                <div class="kicker">{TEAM_FULL} &middot; Forward</div>
+                <div class="name">Deni Avdija</div>
+                <div class="sub">360&deg; Performance Analytics &middot; {CURRENT_SEASON} Season</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_kpi_strip(logs_cur: pd.DataFrame, logs_prev: pd.DataFrame):
+    """At-a-glance KPI cards for the current season, with deltas vs the prior season.
+    Purely additive: computed from existing game-log data."""
+    if logs_cur is None or logs_cur.empty:
+        return
+
+    def avg(df, col):
+        return float(df[col].mean()) if (df is not None and not df.empty and col in df.columns) else 0.0
+
+    def pct(df, made, att):
+        if df is None or df.empty or made not in df.columns or att not in df.columns:
+            return 0.0
+        total = df[att].sum()
+        return float(df[made].sum() / total) if total > 0 else 0.0
+
+    has_prev = logs_prev is not None and not logs_prev.empty
+
+    def d_num(cur, prev):
+        return f"{cur - prev:+.1f}" if has_prev else None
+
+    def d_pp(cur, prev):
+        return f"{(cur - prev) * 100:+.1f} pp" if has_prev else None
+
+    # Current + previous season aggregates
+    c_pts, c_reb, c_ast, c_min = (avg(logs_cur, k) for k in ("PTS", "REB", "AST", "MIN"))
+    p_pts, p_reb, p_ast, p_min = (avg(logs_prev, k) for k in ("PTS", "REB", "AST", "MIN"))
+    c_fg, c_3p, c_ft = pct(logs_cur, "FGM", "FGA"), pct(logs_cur, "FG3M", "FG3A"), pct(logs_cur, "FTM", "FTA")
+    p_fg, p_3p, p_ft = pct(logs_prev, "FGM", "FGA"), pct(logs_prev, "FG3M", "FG3A"), pct(logs_prev, "FTM", "FTA")
+
+    r1 = st.columns(4)
+    r1[0].metric("Points / G", f"{c_pts:.1f}", d_num(c_pts, p_pts))
+    r1[1].metric("Rebounds / G", f"{c_reb:.1f}", d_num(c_reb, p_reb))
+    r1[2].metric("Assists / G", f"{c_ast:.1f}", d_num(c_ast, p_ast))
+    r1[3].metric("Minutes / G", f"{c_min:.1f}", d_num(c_min, p_min))
+
+    r2 = st.columns(4)
+    r2[0].metric("Field Goal %", f"{c_fg * 100:.1f}%", d_pp(c_fg, p_fg))
+    r2[1].metric("3-Point %", f"{c_3p * 100:.1f}%", d_pp(c_3p, p_3p))
+    r2[2].metric("Free Throw %", f"{c_ft * 100:.1f}%", d_pp(c_ft, p_ft))
+    r2[3].metric("Games Played", f"{len(logs_cur)}", f"{len(logs_cur) - len(logs_prev):+d}" if has_prev else None)
+
+    if has_prev:
+        st.caption("▲▼ deltas compare the current season to the prior full season (per-game rates; shooting in percentage points).")
+
+
+# -----------------------------
 # Main App
 # -----------------------------
 def main():
-    st.sidebar.title("Deni Avdija Analytics")
-    
+    st.sidebar.markdown(
+        f"""
+        <div class="sb-card">
+            <img src="{HEADSHOT_URL}" alt="Deni Avdija" />
+            <div class="sb-name">Deni Avdija</div>
+            <div class="sb-role">{TEAM_FULL}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     if st.sidebar.button("🔄 Refresh Data"):
         with st.spinner("Forcing update..."):
             fetch_data.smart_update(force_refresh=True)
@@ -1053,9 +1312,13 @@ def main():
     # PAGE: Dashboard
     # -----------------------------
     if page == "Dashboard":
-        st.title("Performance Dashboard")
+        render_hero()
         st.info("🔥 **#1 in NBA Free Throw Attempts** (250+ FTA)")
-        
+
+        # Season-at-a-glance KPI cards (current season vs prior full season)
+        render_kpi_strip(logs_26, logs_25)
+        st.divider()
+
         # 2025-26 Season (Full Width)
         st.subheader(f"25/26 Impact")
         if not logs_26.empty:
@@ -1125,8 +1388,8 @@ def main():
             fig = px.bar(career_df, x="SEASON_ID", y=["PTS", "REB", "AST"], barmode="group", title="PTS / REB / AST")
             fig.update_layout(
                 xaxis=dict(showgrid=False, title="Season"),
-                yaxis=dict(showgrid=True, gridcolor='lightgray', gridwidth=1, zerolinecolor='black', dtick=5),
-                plot_bgcolor='white',
+                yaxis=dict(showgrid=True, gridcolor='#26304d', gridwidth=1, zerolinecolor='#26304d', dtick=5),
+                plot_bgcolor='rgba(0,0,0,0)',
                 margin=dict(t=40, l=40, r=40, b=40)
             )
             st.plotly_chart(fig, width="stretch")
@@ -1142,8 +1405,8 @@ def main():
             fig = px.bar(df_36, x="SEASON_ID", y=[c+"_36" for c in ["PTS", "REB", "AST", "STL", "TOV"]], barmode="group", title="Per 36 Min")
             fig.update_layout(
                 xaxis=dict(showgrid=False, title="Season"),
-                yaxis=dict(showgrid=True, gridcolor='lightgray', gridwidth=1, zerolinecolor='black', dtick=5),
-                plot_bgcolor='white',
+                yaxis=dict(showgrid=True, gridcolor='#26304d', gridwidth=1, zerolinecolor='#26304d', dtick=5),
+                plot_bgcolor='rgba(0,0,0,0)',
                 margin=dict(t=40, l=40, r=40, b=40)
             )
             st.plotly_chart(fig, width="stretch")
@@ -1529,7 +1792,7 @@ def main():
                         fig.add_trace(go.Scatter(
                             x=[dx], y=[dy], mode="text", 
                             name="Deni", text=["Deni"], textposition="top center",
-                            textfont=dict(size=14, color="black", family="Arial Black")
+                            textfont=dict(size=14, color="#e8edf7", family="Arial Black")
                         ))
                         
                         # Add Deni Face
@@ -1636,7 +1899,7 @@ def main():
                         fig_race.add_trace(go.Scatter(
                             x=[dx], y=[dy], mode="text", 
                             name="Deni", text=["Deni"], textposition="top center",
-                            textfont=dict(size=14, color="black", family="Arial Black")
+                            textfont=dict(size=14, color="#e8edf7", family="Arial Black")
                         ))
                         # Add Deni Face
                         d_url = get_face_url("Deni Avdija")
