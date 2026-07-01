@@ -13,7 +13,7 @@
 ### 📊 Comprehensive Analytics
 - **At-a-glance KPI cards** - Season PPG / RPG / APG / MIN / FG% / 3P% / FT% / GP with season-over-season deltas
 - **Career Progression** - Track Deni's evolution across all NBA seasons
-- **Shot Maps** - Scatter shot charts and 14-zone efficiency visualization
+- **Shot Maps** - Scatter shot charts and a white-outlined zone-efficiency map (every shot is attributed to a court section)
 - **Elite Comparison** - Head-to-head stats vs. a curated All-Star cohort (frozen 24/25 benchmark **and** live current-season "race")
 - **League Trends** - Advanced metrics (drives, fouls drawn, heliocentric analysis)
 - **Deep Dive Research** - Triple Threat charts, usage-adjusted projections
@@ -21,7 +21,8 @@
 ### 🎨 Design
 - **Dark theme** matching the [WC2026 dashboard](https://rshiri.github.io/XWORLDCUPTWIT/wc2026_dashboard/) — navy `#0b0f1a`, green accent `#3ddc97`
 - Configured in [`.streamlit/config.toml`](.streamlit/config.toml) + a custom CSS layer + a unified dark Plotly template
-- Hero banner, sticky top brand bar, gradient stat cards, pill tabs, styled sidebar player card
+- Hero banner, sticky top brand bar, gradient stat cards (green values), pill tabs, styled sidebar player card
+- **"View source on GitHub" links** in the sidebar footer and the About Me page
 
 ### 🗓️ Season-Proof (auto-rolls each year)
 - The current NBA season is **computed from the date**, not hardcoded — it auto-advances to `2026-27` the moment October 2026 arrives, then `2027-28`, and so on
@@ -136,7 +137,7 @@ Because the season string, pickle keys (`game_logs_2026_27`, …), the season ti
 | **Dashboard** | Hero header, KPI cards (with season deltas), and per-game impact charts for the last three seasons |
 | **Career Analysis** | Multi-season progression: per-game, per-36, usage rate, true shooting |
 | **League Trends** | Advanced metrics (heliocentric offense, sniper finders, foul magnets, rim pressure) |
-| **Shot Maps** | Shot charts + 14-zone efficiency, single or side-by-side compare |
+| **Shot Maps** | Shot charts + white-outlined zone efficiency (all shots attributed), single or side-by-side compare |
 | **Research: Deep Dive** | Frozen 24/25 benchmark **and** live current-season All-Star race, plus projections |
 | **Raw Data** | Custom trend viewer and exportable career table |
 | **About Me** | Creator profile |
