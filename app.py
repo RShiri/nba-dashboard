@@ -518,9 +518,15 @@ def get_court_zones() -> list:
         "y": np.concatenate(([-47.5, 0, 0, -47.5], ra_y[::-1]))
     })
     
-    # Paint (Non-RA) - Box minus RA
+    # Paint (Non-RA) - Box minus RA. One polygon covers the whole paint box, so it
+    # must count every non-RA paint area (Center + Right + Left), not just Center.
     zones.append({
         "name": "Paint", "key": "In The Paint (Non-RA)_Center(C)",
+        "keys": [
+            "In The Paint (Non-RA)_Center(C)",
+            "In The Paint (Non-RA)_Right Side(R)",
+            "In The Paint (Non-RA)_Left Side(L)",
+        ],
         "x": np.concatenate(([80, 80, -80, -80, -40], ra_x, [40])),
         "y": np.concatenate(([-47.5, Y_PAINT_TOP, Y_PAINT_TOP, -47.5, -47.5], ra_y, [-47.5]))
     })
@@ -598,14 +604,13 @@ def get_court_zones() -> list:
         "y": np.concatenate((arc_3pt_l_y, far_l_y[::-1], [arc_3pt_l_y[0]]))
     })
     
-    # AB3 Strips (The area above the corners)
-    zones.append({"name": "AB3 Right Strip", "key": "Above the Break 3_Right Side(R)", 
-                  "x": [X_CORNER, 250, 250, X_CORNER, X_CORNER], "y": [y_break, y_break, 422.5, 422.5, y_break]})
-    zones.append({"name": "AB3 Left Strip", "key": "Above the Break 3_Left Side(L)", 
-                  "x": [-X_CORNER, -250, -250, -X_CORNER, -X_CORNER], "y": [y_break, y_break, 422.5, 422.5, y_break]})
+    # NOTE: No "AB3 Right/Left Side" strips. The NBA classifies every above-the-break
+    # three as LC / C / RC (never a plain R/L side), so those strip keys match 0 shots.
+    # The wide AB3 RC/LC wedges already extend over that area and hold those shots, so
+    # drawing separate strips only masked real data with empty gray boxes.
 
     # Backcourt (Optional, but usually not included in 14-zone maps)
-    
+
     return zones
 
 
@@ -674,16 +679,18 @@ def create_zone_efficiency_map(shot_df: pd.DataFrame, season: str) -> go.Figure:
     # Add a small stroke to force overlap if needed, but strict math should hold.
     
     for z in zones:
-        row = stats[stats["ZONE_GROUP"] == z["key"]]
-        
+        # A display zone may cover several NBA sub-areas (e.g. the paint) — sum them all.
+        keys = z.get("keys", [z["key"]])
+        row = stats[stats["ZONE_GROUP"].isin(keys)]
+
         val_text = ""
         pct_text = ""
         hover_text = z["name"]
-        
+
         if not row.empty:
-            fgm = int(row.iloc[0]["FGM"])
-            fga = int(row.iloc[0]["FGA"])
-            pct = row.iloc[0]["PCT"]
+            fgm = int(row["FGM"].sum())
+            fga = int(row["FGA"].sum())
+            pct = (fgm / fga) if fga > 0 else 0.0
             
             # Colors
             if pct < 0.35: fill_color = "#4575b4" # Blue
