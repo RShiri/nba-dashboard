@@ -1,6 +1,6 @@
-# 🏀 Deni Avdija Analytics Dashboard
+# 🏀 Israeli NBA Players Analytics Dashboard
 
-> **Real-time NBA performance analytics for Deni Avdija** - Automatically updated after every game
+> **Real-time NBA performance analytics for every active Israeli NBA player** — Deni Avdija, Ben Saraf, Danny Wolf, and Emanuel Sharp — automatically updated after every game.
 
 ### 🔗 Live demo: **https://nba-dashboard-ramshiri.streamlit.app/**
 
@@ -10,36 +10,39 @@
 
 ## 🌟 Features
 
+### 👥 Every Active Israeli NBA Player
+A sidebar player switcher re-renders every page for whichever player is selected:
+- **Deni Avdija** — Portland Trail Blazers, 2026 NBA All-Star
+- **Ben Saraf** — Brooklyn Nets
+- **Danny Wolf** — Brooklyn Nets
+- **Emanuel Sharp** — Sacramento Kings
+
 ### 📊 Comprehensive Analytics
 - **At-a-glance KPI cards** - Season PPG / RPG / APG / MIN / FG% / 3P% / FT% / GP with season-over-season deltas
-- **Career Progression** - Track Deni's evolution across all NBA seasons
+- **Career Progression** - Track each player's evolution across all NBA seasons
 - **Shot Maps** - Scatter shot charts and a white-outlined zone-efficiency map (every shot is attributed to a court section)
 - **Elite Comparison** - Head-to-head stats vs. a curated All-Star cohort (frozen 24/25 benchmark **and** live current-season "race")
-- **League Trends** - Advanced metrics (drives, fouls drawn, heliocentric analysis)
+- **League Trends** - Advanced metrics (drives, fouls drawn, heliocentric analysis) shared across the whole league
 - **Deep Dive Research** - Triple Threat charts, usage-adjusted projections
 
 ### 🎨 Design
-- **Dark theme** matching the [WC2026 dashboard](https://rshiri.github.io/XWORLDCUPTWIT/wc2026_dashboard/) — navy `#0b0f1a`, green accent `#3ddc97`
+- **"Broadcast Kinetic" dark theme**, ported from the [XLALIGA dashboard](https://rshiri.github.io/XLALIGA/) — carbon ground `#0c0d10`, ONE signal colour (lime `#d7ff3a`), red as the only other semantic colour, condensed/uppercase Barlow Condensed display type, no border radius anywhere
 - Configured in [`.streamlit/config.toml`](.streamlit/config.toml) + a custom CSS layer + a unified dark Plotly template
-- Hero banner, sticky top brand bar, gradient stat cards (green values), pill tabs, styled sidebar player card
+- Hero banner, sticky top brand bar, plate-style KPI cards, sharp-edged tabs, styled sidebar player card with a switcher
 - **"View source on GitHub" links** in the sidebar footer and the About Me page
 
 ### 🗓️ Season-Proof (auto-rolls each year)
 - The current NBA season is **computed from the date**, not hardcoded — it auto-advances to `2026-27` the moment October 2026 arrives, then `2027-28`, and so on
 - Game logs, shot charts, the All-Star "race", league leaderboards, and all on-screen labels follow automatically — **no code edits needed** at season turnover
+- Each player's data only spans seasons on/after their own draft season — a 2025 draftee never wastes an API call on a season before they existed
 - The `2024-25` All-Star **benchmark** stays frozen on purpose as a fixed reference point
 
-### 🤖 Fully Automated
-- ✅ **Auto-detects new games** using Portland's schedule
-- ✅ **Fetches fresh stats** from NBA API after each game
-- ✅ **Commits to GitHub** automatically with timestamps
-- ✅ **Deploys to Streamlit Cloud** without manual intervention
-
-### 🎯 Smart & Efficient
-- **Schedule-aware checking** - Only checks after Portland games (not every 5 minutes)
-- **Intelligent caching** - Prevents excessive API calls
-- **Error handling** - Graceful fallbacks if APIs fail
-- **Offline/CI mode** - Set `SKIP_AUTO_UPDATE=1` to skip the on-load network check (used for local previews and tests)
+### 🤖 Automated, Without Blocking Visitors
+- ✅ **Lightweight on-load check** for whichever player is selected: a couple of fast schedule lookups, and — only when a genuinely new completed game is confirmed — a single game-log API call. This never blocks a page load for minutes.
+- ✅ **Comprehensive scheduled refresh** via GitHub Actions (`.github/workflows/update_data.yml`): fetches career stats, game logs, and shot charts for every player, plus the shared All-Star cohort and League Trends data, and commits the result.
+- ✅ **Manual refresh buttons** in the sidebar: refresh just the selected player (fast) or every player + shared league data (slower, explicit).
+- ✅ **Error handling** - Graceful fallbacks if APIs fail
+- ✅ **Offline/CI mode** - Set `SKIP_AUTO_UPDATE=1` to skip the on-load network check (used for local previews and tests)
 
 ---
 
@@ -58,10 +61,11 @@
    pip install -r requirements.txt
    ```
 
-3. **Fetch initial data**
+3. **Fetch initial data** (every player + shared league data)
    ```bash
    python fetch_data.py
    ```
+   Or just one player while iterating: `python fetch_data.py --player ben_saraf`
 
 4. **Run the dashboard**
    ```bash
@@ -79,12 +83,13 @@
 
 ```
 nba-dashboard/
-├── app.py                     # Main Streamlit dashboard (theme + dynamic seasons)
-├── fetch_data.py              # NBA API data fetcher + auto-update & season logic
+├── app.py                     # Main Streamlit dashboard (player switcher + theme + dynamic seasons)
+├── fetch_data.py              # NBA API data fetcher (multi-player) + auto-update & season logic
 ├── auto_update.py             # Git automation script
-├── nba_data.pkl               # Cached NBA data (auto-generated)
+├── nba_data.pkl               # Cached NBA data (auto-generated) — keyed by player under "players"
 ├── requirements.txt           # Python dependencies
-├── .streamlit/config.toml     # Dark theme (WC2026 palette)
+├── .streamlit/config.toml     # Dark theme (Broadcast Kinetic palette)
+├── .github/workflows/         # Scheduled full data refresh (all players + shared league data)
 ├── profile_pic.png            # About Me photo
 ├── DEPLOYMENT_GUIDE.md        # Streamlit Cloud deployment instructions
 └── README.md                  # This file
@@ -94,28 +99,35 @@ nba-dashboard/
 
 ## 🔄 How Auto-Update Works
 
-### After Every Deni Game
+### Two layers, so nobody waits on a live scrape
+
+1. **On page load** (`app.py`'s `check_and_update_data()`): a couple of fast schedule
+   lookups for the *selected* player's team only. If — and only if — a genuinely new
+   completed game is confirmed, it makes a **single** game-log API call
+   (`fetch_data.quick_refresh_player()`) to patch that player's current-season stats.
+   Never blocks on the full multi-player pipeline.
+2. **Scheduled / manual full refresh** (`fetch_data.smart_update()`, run by the
+   GitHub Action or the sidebar's "Refresh ALL players" button): fetches career stats,
+   game logs, and shot charts for every player, plus the shared All-Star cohort and
+   League Trends data, and commits the result.
 
 ```mermaid
 graph LR
-    A[Game Ends] --> B[Dashboard checks schedule]
+    A[Visitor loads page] --> B[Quick schedule check for selected player]
     B --> C{New game?}
-    C -->|Yes| D[Fetch stats]
-    C -->|No| E[Wait]
-    D --> F[Save to nba_data.pkl]
-    F --> G[Git commit & push]
-    G --> H[Streamlit Cloud restarts]
-    H --> I[Updated dashboard live!]
+    C -->|Yes| D[Single game-log fetch + local patch]
+    C -->|No| E[Nothing — instant page load]
+    F[GitHub Action, daily] --> G[Full smart_update: all players + league data]
+    G --> H[Commit nba_data.pkl]
+    H --> I[Streamlit Cloud auto-redeploys]
 ```
 
 ### Smart Checking Logic
 
 The dashboard only checks for new games when:
-1. ✅ Portland had a game in the last 24 hours
-2. ✅ At least 1 hour has passed since last check
+1. ✅ The selected player's team had a game in the last 24 hours
+2. ✅ At least 1 hour has passed since the last check (per player, per browser session)
 3. ✅ The game status is "Final"
-
-This reduces API calls from **~288/day** to **~2-3/day** (only on game days).
 
 ### Dynamic Season Detection
 
@@ -136,7 +148,7 @@ Because the season string, pickle keys (`game_logs_2026_27`, …), the season ti
 |------|-------------|
 | **Dashboard** | Hero header, KPI cards (with season deltas), and per-game impact charts for the last three seasons |
 | **Career Analysis** | Multi-season progression: per-game, per-36, usage rate, true shooting |
-| **League Trends** | Advanced metrics (heliocentric offense, sniper finders, foul magnets, rim pressure) |
+| **League Trends** | Advanced metrics (heliocentric offense, sniper finders, foul magnets, rim pressure) — shared across the whole league, not player-specific |
 | **Shot Maps** | Shot charts + white-outlined zone efficiency (all shots attributed), single or side-by-side compare |
 | **Research: Deep Dive** | Frozen 24/25 benchmark **and** live current-season All-Star race, plus projections |
 | **Raw Data** | Custom trend viewer and exportable career table |
@@ -146,11 +158,14 @@ Because the season string, pickle keys (`game_logs_2026_27`, …), the season ti
 
 ## 🏆 Elite Comparison Cohort
 
-Deni's stats are compared against a curated cohort of All-Stars & risers, defined by `ALL_STAR_NAMES` in [`fetch_data.py`](fetch_data.py). Current members:
+Every player's stats are compared against a curated cohort of All-Stars & risers, defined
+by `ALL_STAR_NAMES` in [`fetch_data.py`](fetch_data.py) — the 2026 NBA All-Star Game
+roster (Deni Avdija made the team as a Western reserve, so he's excluded from his own
+comparison cohort at render time):
 
-Giannis Antetokounmpo · Jaylen Brown · Jalen Brunson · Cade Cunningham · Tyrese Maxey · Stephen Curry · Luka Dončić · Shai Gilgeous-Alexander · Nikola Jokić · Victor Wembanyama · Anthony Edwards · Jamal Murray · Chet Holmgren · Kevin Durant · Devin Booker · LeBron James · Scottie Barnes · Jalen Johnson · Norman Powell · Karl-Anthony Towns · Pascal Siakam · Donovan Mitchell · Jalen Duren
+Giannis Antetokounmpo · Jaylen Brown · Jalen Brunson · Cade Cunningham · Tyrese Maxey · Stephen Curry · Luka Dončić · Shai Gilgeous-Alexander · Nikola Jokić · Victor Wembanyama · Anthony Edwards · Jamal Murray · Chet Holmgren · Kevin Durant · Devin Booker · LeBron James · Scottie Barnes · Jalen Johnson · Norman Powell · Karl-Anthony Towns · Pascal Siakam · Donovan Mitchell · Jalen Duren · Deni Avdija
 
-> Edit that list to change who Deni is benchmarked against. The **benchmark tab** freezes this cohort's 2024-25 numbers; the **race tab** shows the same cohort's current-season numbers.
+> Edit that list (and update it every February after All-Star rosters are announced) to change the comparison cohort. The **benchmark tab** freezes this cohort's 2024-25 numbers; the **race tab** shows the same cohort's current-season numbers.
 
 ---
 
@@ -160,7 +175,7 @@ Giannis Antetokounmpo · Jaylen Brown · Jalen Brunson · Cade Cunningham · Tyr
 - **Data Source**: [nba_api](https://github.com/swar/nba_api)
 - **Visualization**: Plotly
 - **Data Processing**: Pandas, NumPy
-- **Automation**: Python subprocess, Git
+- **Automation**: GitHub Actions (scheduled), Python subprocess + Git (auto-commit)
 - **Deployment**: Streamlit Community Cloud
 
 ---
@@ -186,8 +201,8 @@ requests
 1. **Push to GitHub**
    ```bash
    git add .
-   git commit -m "Initial commit"
-   git push origin main
+   git commit -m "Update"
+   git push origin master
    ```
 
 2. **Deploy on Streamlit Cloud**
@@ -197,7 +212,8 @@ requests
    - Click **Deploy**
 
 3. **Auto-updates enabled!**
-   - The dashboard will automatically update after every Deni game
+   - The GitHub Action refreshes every player daily; the live app also does a quick
+     per-visitor check for the selected player
    - No manual intervention required
 
 See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for detailed instructions.
@@ -206,15 +222,20 @@ See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for detailed instructions.
 
 ## 🔧 Configuration
 
-### Change Team/Player
+### Players tracked
 
-Edit `fetch_data.py`:
+Edit the `PLAYERS` registry in `fetch_data.py`:
 
 ```python
-PLAYER_NAME = "Deni Avdija"
-PLAYER_ID = 1630166
-TEAM_ID = 1610612757  # Portland Trail Blazers
+PLAYERS = {
+    "deni_avdija": {"name": "Deni Avdija", "id": 1630166, "team_id": 1610612757, ...},
+    "ben_saraf": {"name": "Ben Saraf", "id": 1642879, "team_id": 1610612751, ...},
+    ...
+}
 ```
+
+Add a new entry (NBA.com player ID, team ID, draft season) and it shows up in the
+sidebar switcher automatically — `app.py` reads the same registry.
 
 ### Adjust Update Frequency
 
@@ -246,13 +267,16 @@ SKIP_AUTO_UPDATE=1 py -m streamlit run app.py   # skips the on-load NBA API chec
 
 ## 📝 Manual Data Update
 
-To manually refresh data:
+To manually refresh every player + shared league data:
 
 ```bash
 python fetch_data.py
 ```
 
-Or click the **🔄 Refresh Data** button in the dashboard sidebar.
+Or just one player: `python fetch_data.py --player danny_wolf`
+
+Or click **🔄 Refresh &lt;Player&gt;** (fast, one player) or **Refresh ALL players + league data**
+(slower, under "Advanced ▾") in the dashboard sidebar.
 
 ---
 
@@ -260,15 +284,22 @@ Or click the **🔄 Refresh Data** button in the dashboard sidebar.
 
 ### Data not updating?
 
-1. Check if `nba_data.pkl` exists
-2. Verify Git credentials are configured
-3. Check Streamlit Cloud logs for errors
+1. Check if `nba_data.pkl` exists and has a `"players"` key with the player you expect
+2. Check the GitHub Actions run logs under the **Actions** tab for the failing step's output
+3. Verify Git credentials are configured (for local `auto_update.py` pushes)
+4. Check Streamlit Cloud logs for errors
 
 ### API rate limits?
 
 The schedule-based checking should prevent this, but if it occurs:
 - Increase the minimum check interval in `should_check_for_new_game()`
 - Wait a few minutes and try again
+
+### A newly-drafted player shows no data
+
+A player's game logs / shot charts stay empty until they've actually played an NBA
+game — the dashboard handles this gracefully (an info message instead of an error)
+rather than assuming every player already has a career.
 
 ---
 
@@ -282,7 +313,7 @@ This project is for educational and personal use. NBA data is provided by the un
 
 - **NBA API** - [swar/nba_api](https://github.com/swar/nba_api)
 - **Streamlit** - For the amazing framework
-- **Deni Avdija** - For the inspiration
+- **Deni Avdija, Ben Saraf, Danny Wolf, Emanuel Sharp** - For the inspiration
 
 ---
 
@@ -292,4 +323,4 @@ For questions or suggestions, open an issue on GitHub.
 
 ---
 
-**Made with ❤️ for Deni Avdija fans**
+**Made with ❤️ for Israeli NBA fans**
