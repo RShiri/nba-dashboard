@@ -1,5 +1,8 @@
 """
-Deni Avdija: 360° Performance Analytics Dashboard
+Israeli NBA Players: 360° Performance Analytics Dashboard
+
+Tracks every active Israeli NBA player — Deni Avdija, Ben Saraf, Danny Wolf, and
+Emanuel Sharp — with a player switcher in the sidebar re-rendering every page.
 
 Features:
 - Smart Data Patching: Updates career stats from game logs if stale.
@@ -27,8 +30,11 @@ from datetime import datetime, timedelta
 # -----------------------------
 # Config and constants
 # -----------------------------
-PLAYER_NAME = "Deni Avdija"
 DATA_FILE = "nba_data.pkl"
+
+# Players tracked (registry lives in fetch_data.py, shared with the scraper)
+PLAYERS = fetch_data.PLAYERS
+PLAYER_ORDER = ["deni_avdija", "ben_saraf", "danny_wolf", "emanuel_sharp"]
 
 # Season config (dynamic — auto-rolls to 2026-27, etc. via fetch_data helpers)
 CURRENT_SEASON = fetch_data.get_current_season()
@@ -46,23 +52,22 @@ def season_data_key(season: str) -> str:
     """Pickle key for a season's game logs, e.g. '2025-26' -> 'game_logs_2025_26'."""
     return f"game_logs_{fetch_data.season_key(season)}"
 
-# Player / branding identity
-PLAYER_ID = 1630166  # Deni Avdija (NBA stats ID)
-HEADSHOT_URL = f"https://cdn.nba.com/headshots/nba/latest/1040x760/{PLAYER_ID}.png"
-TEAM_FULL = "Portland Trail Blazers"
-TEAM_PRIMARY = "#E03A3E"  # Blazers red
+
+def headshot_url(player_id: int) -> str:
+    return f"https://cdn.nba.com/headshots/nba/latest/1040x760/{player_id}.png"
+
 
 # Project links
 REPO_URL = "https://github.com/RShiri/nba-dashboard"
 LINKEDIN_URL = "https://www.linkedin.com/in/ram-shiri-1a1056304/?originalSubdomain=il"
 
-# Colorblind-Safe Color Palette
-COLOR_POSITIVE = "#2c7bb6"  # Strong Blue (PTS)
-COLOR_NEGATIVE = "#d7191c"  # Strong Red-Orange
-COLOR_DENI = "#00CC96"  # Teal
-COLOR_HIGHLIGHT = "#AB63FA"  # Purple
-COLOR_AST = "#E69F00" # Orange/Gold (Colorblind Safe for Assists)
-COLOR_GRAY = "#636EFA"  # Blue-gray
+# Colorblind-Safe Color Palette (accent = the one signal colour, matches the theme's lime)
+COLOR_POSITIVE = "#9fd0ff"  # Pale blue (info / comparison average)
+COLOR_NEGATIVE = "#ff2a4d"  # Red (the only other semantic colour)
+COLOR_ACCENT = "#d7ff3a"    # Lime — selected player highlight
+COLOR_HIGHLIGHT = "#9fd0ff"
+COLOR_AST = "#ffb020"       # Amber (kept distinct for assist series)
+COLOR_GRAY = "#737b88"
 
 # Plotly Config for High-Res Downloads
 PLOT_CONFIG = {
@@ -77,42 +82,43 @@ PLOT_CONFIG = {
 }
 
 st.set_page_config(
-    page_title="Deni Avdija Analytics",
+    page_title="Israeli NBA Analytics",
     page_icon="🏀",
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
-        "About": "Deni Avdija 360° Performance Analytics Dashboard — built by Ram Shiri."
+        "About": "Israeli NBA Players 360° Performance Analytics Dashboard — built by Ram Shiri."
     },
 )
 
 
 # -----------------------------
-# Unified Plotly theme
+# Unified Plotly theme — "Broadcast Kinetic" (ported from the XLALIGA dashboard):
+# carbon ground, ONE signal colour (lime), red as the only other semantic colour.
 # -----------------------------
 def _install_plotly_theme():
-    """Register a dark, on-brand Plotly template (matches the WC2026 dashboard)."""
+    """Register a dark, on-brand Plotly template matching the XLALIGA design system."""
     base = pio.templates["plotly_dark"]
     base.layout.paper_bgcolor = "rgba(0,0,0,0)"   # transparent -> shows the card behind
     base.layout.plot_bgcolor = "rgba(0,0,0,0)"
-    base.layout.font.family = "Segoe UI, system-ui, -apple-system, Roboto, Arial, sans-serif"
-    base.layout.font.color = "#e8edf7"
+    base.layout.font.family = "Barlow, Segoe UI, system-ui, sans-serif"
+    base.layout.font.color = "#f5f7fa"
     base.layout.font.size = 13
-    base.layout.title.font.family = "Segoe UI, system-ui, sans-serif"
+    base.layout.title.font.family = "Barlow Condensed, Segoe UI, sans-serif"
     base.layout.title.font.size = 18
-    base.layout.title.font.color = "#e8edf7"
+    base.layout.title.font.color = "#f5f7fa"
     base.layout.colorway = [
-        "#3ddc97", "#4ea1ff", "#ffb454", "#ff6b81", "#a78bfa", "#e8edf7", "#93a0bd",
+        "#d7ff3a", "#9fd0ff", "#ff2a4d", "#b9bfc9", "#ffb020", "#f5f7fa", "#737b88",
     ]
-    base.layout.hoverlabel.font.family = "Segoe UI, sans-serif"
-    base.layout.hoverlabel.bgcolor = "#161d31"
-    base.layout.hoverlabel.bordercolor = "#26304d"
-    base.layout.xaxis.gridcolor = "#26304d"
-    base.layout.yaxis.gridcolor = "#26304d"
-    base.layout.xaxis.zerolinecolor = "#26304d"
-    base.layout.yaxis.zerolinecolor = "#26304d"
-    base.layout.xaxis.linecolor = "#26304d"
-    base.layout.yaxis.linecolor = "#26304d"
+    base.layout.hoverlabel.font.family = "Barlow, sans-serif"
+    base.layout.hoverlabel.bgcolor = "#1c1f26"
+    base.layout.hoverlabel.bordercolor = "rgba(255,255,255,0.18)"
+    base.layout.xaxis.gridcolor = "rgba(255,255,255,0.18)"
+    base.layout.yaxis.gridcolor = "rgba(255,255,255,0.18)"
+    base.layout.xaxis.zerolinecolor = "rgba(255,255,255,0.18)"
+    base.layout.yaxis.zerolinecolor = "rgba(255,255,255,0.18)"
+    base.layout.xaxis.linecolor = "rgba(255,255,255,0.18)"
+    base.layout.yaxis.linecolor = "rgba(255,255,255,0.18)"
     pio.templates.default = "plotly_dark"
     px.defaults.template = "plotly_dark"
 
@@ -121,150 +127,155 @@ _install_plotly_theme()
 
 
 # -----------------------------
-# Custom CSS design layer
+# Custom CSS design layer — Broadcast Kinetic skin
 # -----------------------------
 def inject_theme():
     st.markdown(
         """
         <style>
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,700;0,800;1,700;1,800&family=Barlow:wght@400;500;600;700&display=swap');
+
         :root{
-            --bg:#0b0f1a; --bg-2:#121829; --card:#161d31; --card-2:#1b2440;
-            --line:#26304d; --text:#e8edf7; --muted:#93a0bd;
-            --accent:#3ddc97; --accent-2:#4ea1ff; --warn:#ffb454; --bad:#ff6b81;
-            --shadow:0 8px 28px rgba(0,0,0,0.35); --radius:14px;
+            --bg:#0c0d10; --bg-2:#0c0d10; --card:#15171c; --card-2:#1c1f26;
+            --line:rgba(255,255,255,0.08); --line-strong:rgba(255,255,255,0.18);
+            --text:#f5f7fa; --muted:#b9bfc9; --muted-2:#737b88;
+            --accent:#d7ff3a; --accent-ink:#0c0d10; --accent-2:#9fd0ff; --warn:#ffb020; --bad:#ff2a4d;
+            --shadow:0 8px 28px rgba(0,0,0,0.5); --radius:0px;
+            --font-display:"Barlow Condensed","Barlow",sans-serif; --font-body:"Barlow",sans-serif;
         }
 
         html, body, [class*="css"], .stMarkdown, .stMetric, .stTabs, button, input, select, textarea {
-            font-family:"Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+            font-family: var(--font-body);
         }
 
-        /* App background: navy radial gradient (matches WC2026) */
+        /* App background: carbon ground with a faint diagonal hatch */
         [data-testid="stAppViewContainer"]{
-            background: radial-gradient(1200px 600px at 80% -10%, #16203a 0%, var(--bg) 55%) fixed;
+            background:
+                repeating-linear-gradient(-55deg, rgba(255,255,255,0.022) 0 2px, transparent 2px 14px),
+                var(--bg);
         }
         [data-testid="stHeader"]{ background: rgba(0,0,0,0); }
         .block-container{ padding-top:2.2rem; padding-bottom:3rem; max-width:1260px; }
 
-        /* Headings */
-        h1{ font-weight:800 !important; letter-spacing:.2px; color:var(--text); }
-        h2, h3{ font-weight:700 !important; color:var(--text); }
+        /* Headings: condensed, uppercase, italic — matches the XLALIGA display type */
+        h1, h2, h3{
+            font-family: var(--font-display) !important; font-weight:800 !important;
+            font-style:italic; letter-spacing:.02em; text-transform:uppercase; color:var(--text);
+        }
         p, span, label, li{ color:var(--text); }
 
-        /* Section subheaders get a small green accent bar */
+        /* Section subheaders get a small accent bar */
         [data-testid="stHeading"] h3{ position:relative; padding-left:12px; }
         [data-testid="stHeading"] h3::before{
             content:""; position:absolute; left:0; top:5px; bottom:5px;
-            width:4px; border-radius:4px; background:var(--accent);
+            width:4px; background:var(--accent);
         }
 
-        /* Metric cards -> WC2026 ".stat" style */
+        /* Metric cards -> plate style, no radius */
         [data-testid="stMetric"]{
-            background: linear-gradient(180deg, var(--card-2), var(--card));
-            border:1px solid var(--line);
-            border-radius:var(--radius);
+            background: var(--card-2);
+            border:1px solid var(--line-strong);
+            border-radius:0;
             padding:16px 18px;
-            box-shadow:var(--shadow);
-            transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+            transition: border-color .14s ease;
         }
-        [data-testid="stMetric"]:hover{
-            transform:translateY(-2px);
-            border-color:var(--accent);
-            box-shadow:0 10px 26px rgba(61,220,151,0.14);
-        }
+        [data-testid="stMetric"]:hover{ border-color:var(--accent); }
         [data-testid="stMetricLabel"] p{
-            font-size:.72rem; font-weight:600; text-transform:uppercase;
-            letter-spacing:.7px; color:var(--muted);
+            font-family: var(--font-display); font-size:.72rem; font-weight:700; text-transform:uppercase;
+            letter-spacing:.1em; color:var(--muted);
         }
-        [data-testid="stMetricValue"]{ font-weight:800; color:var(--accent); }
+        [data-testid="stMetricValue"]{ font-family: var(--font-display); font-weight:800; color:var(--accent); }
 
         /* Hero banner */
         .deni-hero{
             display:flex; align-items:center; gap:22px;
-            background: linear-gradient(120deg, #101830 0%, #14233f 55%, #123a34 130%);
-            border:1px solid var(--line);
-            border-radius:18px; padding:22px 28px; margin:0 0 20px 0;
-            box-shadow:var(--shadow);
+            background: var(--card);
+            border:1px solid var(--line-strong);
+            border-radius:0; padding:22px 28px; margin:0 0 20px 0;
         }
         .deni-hero img{
             height:104px; width:104px; border-radius:50%; object-fit:cover;
-            border:3px solid var(--accent); background:#0b0f1a; flex:0 0 auto;
+            border:3px solid var(--accent); background:#0c0d10; flex:0 0 auto;
         }
         .deni-hero .kicker{
-            color:var(--accent); font-size:.72rem; font-weight:700; letter-spacing:2.5px;
+            font-family: var(--font-display);
+            color:var(--accent); font-size:.72rem; font-weight:700; letter-spacing:.2em;
             text-transform:uppercase; margin-bottom:2px;
         }
-        .deni-hero .name{ color:var(--text); font-size:2.15rem; font-weight:800; line-height:1.05; }
+        .deni-hero .name{
+            font-family: var(--font-display); font-style:italic;
+            color:var(--text); font-size:2.15rem; font-weight:800; line-height:1.05; text-transform:uppercase;
+        }
         .deni-hero .sub{ color:var(--muted); font-size:.98rem; margin-top:4px; }
 
-        /* Sticky top header bar (WC2026 header.site) */
+        /* Sticky top header bar */
         .topbar{
             position:sticky; top:0; z-index:50;
             display:flex; align-items:center; gap:12px;
             margin:-1rem 0 18px 0; padding:12px 18px;
             backdrop-filter:blur(10px);
-            background:rgba(11,15,26,0.82);
-            border:1px solid var(--line); border-radius:0 0 14px 14px;
+            background:rgba(12,13,16,0.86);
+            border:1px solid var(--line-strong); border-radius:0;
             border-top:none;
         }
         .topbar .dot{ width:10px; height:10px; border-radius:50%; background:var(--accent);
-            box-shadow:0 0 10px rgba(61,220,151,0.8); flex:0 0 auto; }
-        .topbar .tb-title{ font-size:1.05rem; font-weight:800; color:var(--text); letter-spacing:.2px; }
+            box-shadow:0 0 10px rgba(215,255,58,0.8); flex:0 0 auto; }
+        .topbar .tb-title{ font-family: var(--font-display); font-size:1.05rem; font-weight:800; color:var(--text); letter-spacing:.05em; text-transform:uppercase; }
         .topbar .tb-title span{ color:var(--accent); }
-        .topbar .tb-sub{ font-size:.72rem; color:var(--muted); margin-left:auto;
-            text-transform:uppercase; letter-spacing:1px; }
+        .topbar .tb-sub{ font-family: var(--font-display); font-size:.72rem; color:var(--muted); margin-left:auto;
+            text-transform:uppercase; letter-spacing:.15em; }
 
         /* Sidebar */
         [data-testid="stSidebar"]{
-            background: linear-gradient(180deg, #0d1322 0%, #0b0f1a 100%);
-            border-right:1px solid var(--line);
+            background: var(--card);
+            border-right:1px solid var(--line-strong);
         }
         .sb-card{
             text-align:center; padding:16px 10px 10px; margin-bottom:8px;
-            background: linear-gradient(160deg, var(--card-2), var(--card));
-            border:1px solid var(--line);
-            border-radius:16px; box-shadow:var(--shadow);
+            background: var(--card-2);
+            border:1px solid var(--line-strong);
+            border-radius:0;
         }
         .sb-card img{
             height:84px; width:84px; border-radius:50%; object-fit:cover;
-            border:3px solid var(--accent); background:#0b0f1a;
+            border:3px solid var(--accent); background:#0c0d10;
         }
-        .sb-card .sb-name{ color:var(--text); font-weight:700; font-size:1.05rem; margin-top:8px; }
-        .sb-card .sb-role{ color:var(--accent); font-size:.72rem; letter-spacing:1px; text-transform:uppercase; }
+        .sb-card .sb-name{ font-family: var(--font-display); color:var(--text); font-weight:700; font-size:1.05rem; margin-top:8px; text-transform:uppercase; }
+        .sb-card .sb-role{ font-family: var(--font-display); color:var(--accent); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; }
 
         /* Buttons */
         .stButton > button{
-            border-radius:10px; font-weight:600;
-            background:var(--card); color:var(--text); border:1px solid var(--line);
+            border-radius:0; font-family: var(--font-display); font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+            background:var(--card-2); color:var(--text); border:1px solid var(--line-strong);
             transition:all .14s ease;
         }
         .stButton > button:hover{
             border-color:var(--accent); color:var(--accent);
-            box-shadow:0 4px 14px rgba(61,220,151,0.18);
         }
 
-        /* Tabs -> pill style, active = green */
-        .stTabs [data-baseweb="tab-list"]{ gap:6px; border-bottom:1px solid var(--line); }
+        /* Tabs -> sharp, active = lime */
+        .stTabs [data-baseweb="tab-list"]{ gap:6px; border-bottom:1px solid var(--line-strong); }
         .stTabs [data-baseweb="tab"]{
-            border-radius:10px; padding:8px 16px; font-weight:600; color:var(--muted);
+            border-radius:0; padding:8px 16px; font-family: var(--font-display); font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--muted);
         }
-        .stTabs [data-baseweb="tab"]:hover{ color:var(--text); background:var(--card); }
+        .stTabs [data-baseweb="tab"]:hover{ color:var(--text); background:var(--card-2); }
         .stTabs [aria-selected="true"]{
-            color:#0b0f1a !important; background:var(--accent);
-            box-shadow:0 4px 14px rgba(61,220,151,0.3);
+            color:var(--accent-ink) !important; background:var(--accent);
         }
 
         /* Inputs / selects */
         [data-baseweb="select"] > div, .stTextInput input, .stNumberInput input{
-            background:var(--card) !important; border-color:var(--line) !important;
+            background:var(--card-2) !important; border-color:var(--line-strong) !important; border-radius:0 !important;
         }
+        div[data-baseweb="popover"]{ background:var(--card-2) !important; }
 
-        /* Dataframes: rounded dark frame */
-        [data-testid="stDataFrame"]{ border-radius:12px; overflow:hidden; border:1px solid var(--line); }
+        /* Dataframes: sharp dark frame */
+        [data-testid="stDataFrame"]{ border-radius:0; overflow:hidden; border:1px solid var(--line-strong); }
 
         /* Alert boxes blend with the dark theme */
-        [data-testid="stAlert"]{ border-radius:12px; border:1px solid var(--line); }
+        [data-testid="stAlert"], div[data-testid="stAlertContainer"]{ border-radius:0; border-left:3px solid var(--accent); border-top:1px solid var(--line-strong); border-right:1px solid var(--line-strong); border-bottom:1px solid var(--line-strong); background:var(--card-2) !important; }
 
-        hr{ border-color:var(--line); }
+        hr{ border-color:var(--line-strong); }
         </style>
         """,
         unsafe_allow_html=True,
@@ -280,79 +291,73 @@ inject_theme()
 # -----------------------------
 # Auto-Update Logic
 # -----------------------------
-def check_and_update_data():
+def check_and_update_data(player_key: str, meta: dict):
     """
-    Smart update checker that detects new games and updates data automatically.
-    Uses session state caching to prevent excessive API calls.
+    Lightweight per-player freshness check, run on page load for whichever player is
+    currently selected. This is intentionally cheap: a couple of fast schedule lookups,
+    and — only when a genuinely new completed game is confirmed — a SINGLE game-log API
+    call via fetch_data.quick_refresh_player(). It never runs the full multi-player
+    smart_update() (career + game logs + shot charts + league-wide trends for every
+    player) inline in a visitor's page load; that stays on the scheduled GitHub Action
+    and the sidebar's manual refresh buttons, so nobody waits minutes on a live scrape.
     """
     # Allow disabling the on-load network check (useful for offline/local previews & CI).
     if os.environ.get("SKIP_AUTO_UPDATE") == "1":
         return
     try:
-        # Initialize session state for caching
         if "last_game_check_time" not in st.session_state:
-            st.session_state.last_game_check_time = None
-            st.session_state.last_known_game_count = 0
-        
-        # CASE 1: No data file exists - fetch initial data
+            st.session_state.last_game_check_time = {}
+
+        # CASE 1: No data file exists at all - bootstrap every player (one-time, rare).
         if not Path(DATA_FILE).exists():
             status = st.empty()
-            status.info("⏳ No data found. Fetching initial data...")
+            status.info("⏳ No data found. Fetching initial data for every player (one-time)...")
             fetch_data.smart_update()
             status.success("✅ Initial data loaded!")
             time.sleep(1)
             status.empty()
             st.rerun()
             return
-        
-        # CASE 2: Smart schedule-based checking (only after Portland games)
+
+        # CASE 2: Smart schedule-based checking for the SELECTED player's team only.
         now = datetime.now()
-        
-        # Load existing data to check logs
-        logs_25_26 = pd.DataFrame()
         try:
             with open(DATA_FILE, "rb") as f:
                 existing_data = pickle.load(f)
-            logs_25_26 = existing_data.get(season_data_key(CURRENT_SEASON), pd.DataFrame())
         except Exception:
-            pass
+            existing_data = {}
 
-        # Check if we should look for new games based on schedule (last 24-48h)
+        player_data = existing_data.get("players", {}).get(player_key, {})
+        logs_cur = player_data.get(season_data_key(CURRENT_SEASON), pd.DataFrame())
+
         should_check = fetch_data.should_check_for_new_game(
-            last_check=st.session_state.last_game_check_time,
-            existing_logs=logs_25_26
+            last_check=st.session_state.last_game_check_time.get(player_key),
+            existing_logs=logs_cur,
+            team_id=meta["team_id"],
         )
-        
+
         if should_check:
+            st.session_state.last_game_check_time[player_key] = now
             try:
-                # Check if there's a new completed game
-                status = st.empty()
-                status.info("🔍 Checking for new games...")
-                
-                has_new_game = fetch_data.check_new_games(logs_25_26)
-                st.session_state.last_game_check_time = now
-                
+                has_new_game = fetch_data.check_new_games(logs_cur, meta["team_id"], meta["draft_season"])
+
                 if has_new_game:
-                    status.success("🎮 New game detected! Updating stats...")
-                    fetch_data.smart_update()
-                    status.success("✅ Stats updated with latest game!")
-                    time.sleep(2)
+                    status = st.empty()
+                    status.info(f"🎮 New {meta['name']} game detected — pulling the box score...")
+                    updated_player = fetch_data.quick_refresh_player(player_key, existing_data)
+                    existing_data.setdefault("players", {})[player_key] = updated_player
+                    with open(DATA_FILE, "wb") as f:
+                        pickle.dump(existing_data, f)
+                    status.success("✅ Stats updated with the latest game!")
+                    time.sleep(1)
                     status.empty()
                     st.rerun()
-                else:
-                    # Update game count for tracking
-                    st.session_state.last_known_game_count = len(logs_25_26)
-                    status.empty()
-                    
             except Exception as e:
                 print(f"Error checking for new games: {e}")
                 # Don't crash the app, just log the error
-                
+
     except Exception as e:
         print(f"Update check failed: {e}")
-
-# Run check immediately on app load
-check_and_update_data()
 
 
 @st.cache_data(show_spinner=False)
@@ -617,7 +622,11 @@ def get_court_zones() -> list:
 def create_clean_shot_chart(shot_df: pd.DataFrame, season: str) -> go.Figure:
     """Mode A: Clean Scatter Chart (Made=Green Circle, Missed=Red X)."""
     fig = draw_nba_court()
-    
+
+    if shot_df.empty or "LOC_X" not in shot_df.columns or "LOC_Y" not in shot_df.columns:
+        fig.update_layout(title=f"{season} - No Data")
+        return fig
+
     clean_df = shot_df.dropna(subset=["LOC_X", "LOC_Y"])
     if clean_df.empty:
         fig.update_layout(title=f"{season} - No Data")
@@ -630,7 +639,7 @@ def create_clean_shot_chart(shot_df: pd.DataFrame, season: str) -> go.Figure:
     fig.add_trace(go.Scatter(
         x=made["LOC_X"], y=made["LOC_Y"], 
         mode="markers",
-        marker=dict(color="#2ca02c", size=6, opacity=0.7, line=dict(width=0)),
+        marker=dict(color=COLOR_ACCENT, size=6, opacity=0.7, line=dict(width=0)),
         name="Made", showlegend=True
     ))
     
@@ -638,7 +647,7 @@ def create_clean_shot_chart(shot_df: pd.DataFrame, season: str) -> go.Figure:
     fig.add_trace(go.Scatter(
         x=missed["LOC_X"], y=missed["LOC_Y"], 
         mode="markers",
-        marker=dict(color="#d62728", size=6, opacity=0.7, symbol="x"),
+        marker=dict(color=COLOR_NEGATIVE, size=6, opacity=0.7, symbol="x"),
         name="Missed", showlegend=True
     ))
     
@@ -740,17 +749,17 @@ def draw_nba_court(fig=None):
     if fig is None: fig = go.Figure()
     shapes = []
     # Outer
-    shapes.append(dict(type="rect", x0=-250, y0=-47.5, x1=250, y1=422.5, line=dict(color="#8ea0c0", width=2)))
+    shapes.append(dict(type="rect", x0=-250, y0=-47.5, x1=250, y1=422.5, line=dict(color="#737b88", width=2)))
     # Paint
-    shapes.append(dict(type="rect", x0=-80, y0=-47.5, x1=80, y1=142.5, line=dict(color="#8ea0c0", width=2)))
-    shapes.append(dict(type="rect", x0=-60, y0=-47.5, x1=60, y1=142.5, line=dict(color="#8ea0c0", width=2)))
+    shapes.append(dict(type="rect", x0=-80, y0=-47.5, x1=80, y1=142.5, line=dict(color="#737b88", width=2)))
+    shapes.append(dict(type="rect", x0=-60, y0=-47.5, x1=60, y1=142.5, line=dict(color="#737b88", width=2)))
     # Hoop
     shapes.append(dict(type="circle", x0=-7.5, y0=-7.5, x1=7.5, y1=7.5, line=dict(color="#ec7607", width=2)))
-    shapes.append(dict(type="line", x0=-30, y0=-40, x1=30, y1=-40, line=dict(color="#8ea0c0", width=2)))
+    shapes.append(dict(type="line", x0=-30, y0=-40, x1=30, y1=-40, line=dict(color="#737b88", width=2)))
     shapes.append(dict(type="line", x0=0, y0=-40, x1=0, y1=-7.5, line=dict(color="#ec7607", width=2)))
     # 3PT
-    shapes.append(dict(type="line", x0=-220, y0=-47.5, x1=-220, y1=92.5, line=dict(color="#8ea0c0", width=2)))
-    shapes.append(dict(type="line", x0=220, y0=-47.5, x1=220, y1=92.5, line=dict(color="#8ea0c0", width=2)))
+    shapes.append(dict(type="line", x0=-220, y0=-47.5, x1=-220, y1=92.5, line=dict(color="#737b88", width=2)))
+    shapes.append(dict(type="line", x0=220, y0=-47.5, x1=220, y1=92.5, line=dict(color="#737b88", width=2)))
     # Arcs
     arc_x = []
     arc_y = []
@@ -761,19 +770,19 @@ def draw_nba_court(fig=None):
             if y > 92.5:
                 arc_x.append(x)
                 arc_y.append(y)
-    fig.add_trace(go.Scatter(x=arc_x, y=arc_y, mode="lines", line=dict(color="#8ea0c0", width=2), showlegend=False, hoverinfo="skip"))
+    fig.add_trace(go.Scatter(x=arc_x, y=arc_y, mode="lines", line=dict(color="#737b88", width=2), showlegend=False, hoverinfo="skip"))
     
     # Center Circle (Half)
     cc_x = [60 * np.cos(t) for t in np.linspace(0, np.pi, 50)]
     cc_y = [422.5 + 60 * np.sin(t) for t in np.linspace(0, np.pi, 50)]
-    fig.add_trace(go.Scatter(x=cc_x, y=cc_y, mode="lines", line=dict(color="#8ea0c0", width=2), showlegend=False, hoverinfo="skip"))
+    fig.add_trace(go.Scatter(x=cc_x, y=cc_y, mode="lines", line=dict(color="#737b88", width=2), showlegend=False, hoverinfo="skip"))
 
     # STRICT LAYOUT FOR IDENTICAL SIZING
     fig.update_layout(
         shapes=shapes,
         xaxis=dict(range=[-250, 250], showgrid=False, zeroline=False, visible=False, fixedrange=True),
         yaxis=dict(range=[-47.5, 422.5], scaleanchor="x", scaleratio=1, showgrid=False, zeroline=False, visible=False, fixedrange=True),
-        plot_bgcolor="#0e1524",
+        plot_bgcolor="#090a0d",
         paper_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=0,r=0,t=25,b=0),
         width=650, height=600, # Fixed dimensions
@@ -798,24 +807,24 @@ def draw_nba_court(fig=None):
 # -----------------------------
 # Restored Deep Dive Charts
 # -----------------------------
-def plot_allstar_thresh(deni_stats: dict, allstar_df: pd.DataFrame) -> go.Figure:
-    """Restored Grouped Bar Chart: Deni vs All-Star Avg vs Entry Level"""
+def plot_allstar_thresh(player_name: str, deni_stats: dict, allstar_df: pd.DataFrame) -> go.Figure:
+    """Restored Grouped Bar Chart: selected player vs All-Star Avg vs Entry Level"""
     if allstar_df.empty: return go.Figure()
-    
+
     # Averages
     avg_pts = (allstar_df["PTS"] * allstar_df["GP"]).sum() / allstar_df["GP"].sum()
     avg_reb = (allstar_df["REB"] * allstar_df["GP"]).sum() / allstar_df["GP"].sum()
     avg_ast = (allstar_df["AST"] * allstar_df["GP"]).sum() / allstar_df["GP"].sum()
-    
+
     # Bottom 4
     bottom = allstar_df.nsmallest(4, "PTS").sort_values("PTS")
-    
+
     fig = go.Figure()
     cats = ["PTS", "REB", "AST"]
-    
-    # Deni
+
+    # Selected player
     d_vals = [deni_stats.get("PTS",0), deni_stats.get("REB",0), deni_stats.get("AST",0)]
-    fig.add_trace(go.Bar(name="Deni Avdija", x=cats, y=d_vals, marker_color=COLOR_DENI, text=[f"{v:.1f}" for v in d_vals], textposition="outside"))
+    fig.add_trace(go.Bar(name=player_name, x=cats, y=d_vals, marker_color=COLOR_ACCENT, text=[f"{v:.1f}" for v in d_vals], textposition="outside"))
     
     # Avg
     a_vals = [avg_pts, avg_reb, avg_ast]
@@ -831,7 +840,7 @@ def plot_allstar_thresh(deni_stats: dict, allstar_df: pd.DataFrame) -> go.Figure
     return fig
 
 
-def plot_triple_threat(allstar_df: pd.DataFrame, deni_stats: dict, is_2d: bool = True) -> go.Figure:
+def plot_triple_threat(allstar_df: pd.DataFrame, player_name: str, deni_stats: dict, is_2d: bool = True) -> go.Figure:
     """
     Restored Triple Threat Chart (2D Only - Faces).
     X=PTS, Y=AST, Size=REB (Face Size)
@@ -863,7 +872,7 @@ def plot_triple_threat(allstar_df: pd.DataFrame, deni_stats: dict, is_2d: bool =
     pts_list = allstar_df["PTS"].tolist() + [d_pts]
     ast_list = allstar_df["AST"].tolist() + [d_ast]
     reb_list = allstar_df["REB"].tolist() + [d_reb]
-    names_list = allstar_df["PLAYER_NAME"].tolist() + ["Deni Avdija"]
+    names_list = allstar_df["PLAYER_NAME"].tolist() + [player_name]
     
     fig.add_trace(go.Scatter(
         x=pts_list, y=ast_list,
@@ -893,8 +902,8 @@ def plot_triple_threat(allstar_df: pd.DataFrame, deni_stats: dict, is_2d: bool =
                 layer="above"
             ))
             
-    # Deni
-    d_url = get_face_url_local("Deni Avdija")
+    # Selected player
+    d_url = get_face_url_local(player_name)
     if d_url:
         d_size = max(d_reb * SIZE_FACTOR, 0.5)
         images.append(dict(
@@ -905,14 +914,14 @@ def plot_triple_threat(allstar_df: pd.DataFrame, deni_stats: dict, is_2d: bool =
             xanchor="center", yanchor="middle",
             layer="above"
         ))
-        
-    # Add Deni Text Label
+
+    # Add selected player text label
     fig.add_trace(go.Scatter(
         x=[d_pts], y=[d_ast - (d_reb * SIZE_FACTOR * 0.6)], # Shift text below face
         mode="text",
-        text=["Deni"],
+        text=[player_name.split()[0]],
         textposition="bottom center",
-        textfont=dict(size=14, color="#e8edf7", family="Arial Black")
+        textfont=dict(size=14, color="#f5f7fa", family="Arial Black")
     ))
 
     fig.update_layout(
@@ -930,12 +939,14 @@ def plot_triple_threat(allstar_df: pd.DataFrame, deni_stats: dict, is_2d: bool =
     return fig
 
 
-def analytical_verdict(deni_stats: dict, allstar_df: pd.DataFrame):
+def analytical_verdict(player_name: str, deni_stats: dict, allstar_df: pd.DataFrame):
     """
-    Displays the percentile ranking of Deni vs All-Stars with correct grammar.
+    Displays the percentile ranking of the selected player vs All-Stars with correct grammar.
     """
     if allstar_df.empty: return
-    
+
+    first_name = player_name.split()[0]
+
     # 1. Helper for correct suffixes (1st, 2nd, 3rd, 4th...)
     def get_ordinal(n):
         if 11 <= (n % 100) <= 13: suffix = 'th'
@@ -946,29 +957,29 @@ def analytical_verdict(deni_stats: dict, allstar_df: pd.DataFrame):
     pts_p = int((allstar_df["PTS"] < deni_stats["PTS"]).mean() * 100)
     reb_p = int((allstar_df["REB"] < deni_stats["REB"]).mean() * 100)
     ast_p = int((allstar_df["AST"] < deni_stats["AST"]).mean() * 100)
-    
+
     st.markdown("### 🎯 The Analytical Verdict")
-    
+
     # 3. Display Metrics with Fix
     c1, c2, c3 = st.columns(3)
     c1.metric("Scoring Percentile", get_ordinal(pts_p), help="Rank among All-Star roster")
     c2.metric("Rebounding Percentile", get_ordinal(reb_p), help="Rank among All-Star roster")
     c3.metric("Playmaking Percentile", get_ordinal(ast_p), help="Rank among All-Star roster")
-    
+
     # 4. Context Explanation
     st.caption(f"""
-    ℹ️ **Context:** These percentages compare Deni specifically against the selected **All-Star roster**.
+    ℹ️ **Context:** These percentages compare {first_name} specifically against the selected **All-Star roster**.
     For example, being in the **{get_ordinal(pts_p)} percentile** means he outscores {pts_p}% of the NBA's elite.
     """)
-    
+
     # 5. Summary Logic (Existing)
     avg_p = (pts_p + reb_p + ast_p) / 3
     if avg_p > 50:
-        st.success(f"🏆 **All-Star Caliber**: Deni ranks in the top half of All-Stars ({get_ordinal(int(avg_p))} percentile avg).")
+        st.success(f"🏆 **All-Star Caliber**: {first_name} ranks in the top half of All-Stars ({get_ordinal(int(avg_p))} percentile avg).")
     elif avg_p > 30:
-        st.warning(f"⚡ **Borderline**: Deni is competitive with lower-tier All-Stars ({get_ordinal(int(avg_p))} percentile avg).")
+        st.warning(f"⚡ **Borderline**: {first_name} is competitive with lower-tier All-Stars ({get_ordinal(int(avg_p))} percentile avg).")
     else:
-        st.info(f"📈 **Developing**: Deni shows flashes but trails the All-Star pack ({get_ordinal(int(avg_p))} percentile avg).")
+        st.info(f"📈 **Developing**: {first_name} shows flashes but trails the All-Star pack ({get_ordinal(int(avg_p))} percentile avg).")
 
 
 def plot_what_if_analysis() -> go.Figure:
@@ -1047,8 +1058,8 @@ def plot_what_if_analysis() -> go.Figure:
     return fig
 
 
-def plot_versatility_radar(deni_stats: dict, allstar_df: pd.DataFrame) -> go.Figure:
-    """Radar Chart: Deni vs All-Star Average (Normalized)."""
+def plot_versatility_radar(player_name: str, deni_stats: dict, allstar_df: pd.DataFrame) -> go.Figure:
+    """Radar Chart: selected player vs All-Star Average (Normalized)."""
     if allstar_df.empty: return go.Figure()
 
     metrics = ["PTS", "REB", "AST", "STL", "BLK"]
@@ -1083,12 +1094,12 @@ def plot_versatility_radar(deni_stats: dict, allstar_df: pd.DataFrame) -> go.Fig
         fillcolor="rgba(99, 110, 250, 0.2)"
     ))
     
-    # Deni
+    # Selected player
     fig.add_trace(go.Scatterpolar(
         r=d_norm, theta=metrics,
-        fill='toself', name='Deni Avdija',
-        line=dict(color=COLOR_DENI, width=3),
-        fillcolor="rgba(0, 204, 150, 0.3)"
+        fill='toself', name=player_name,
+        line=dict(color=COLOR_ACCENT, width=3),
+        fillcolor="rgba(215, 255, 58, 0.28)"
     ))
     
     fig.update_layout(
@@ -1102,51 +1113,51 @@ def plot_versatility_radar(deni_stats: dict, allstar_df: pd.DataFrame) -> go.Fig
     return fig
 
 
-def plot_offensive_engine(deni_stats: dict, allstar_df: pd.DataFrame) -> go.Figure:
+def plot_offensive_engine(player_name: str, deni_stats: dict, allstar_df: pd.DataFrame) -> go.Figure:
     """Stacked Bar: Points Scored + Points Created."""
     if allstar_df.empty: return go.Figure()
-    
+
     # 1. Prepare Data
     df = allstar_df.copy()
-    
-    # Add Deni if not in list
-    if "Deni Avdija" not in df["PLAYER_NAME"].values:
-        d_row = {"PLAYER_NAME": "Deni Avdija"}
+
+    # Add selected player if not in list
+    if player_name not in df["PLAYER_NAME"].values:
+        d_row = {"PLAYER_NAME": player_name}
         for k, v in deni_stats.items():
             if k in df.columns: d_row[k] = v
         df = pd.concat([df, pd.DataFrame([d_row])], ignore_index=True)
-        
+
     # Calculate Engine Stats
     df["PTS_CREATED"] = df["AST"] * 2.3
     df["TOTAL_OUTPUT"] = df["PTS"] + df["PTS_CREATED"]
-    
+
     # Sort
     df = df.sort_values("TOTAL_OUTPUT", ascending=False)
-    
-    # Top 15 + Deni check
+
+    # Top 15 + selected player check
     top_15 = df.head(15)
-    if "Deni Avdija" not in top_15["PLAYER_NAME"].values:
-        deni_row = df[df["PLAYER_NAME"] == "Deni Avdija"]
-        plot_df = pd.concat([top_15, deni_row])
+    if player_name not in top_15["PLAYER_NAME"].values:
+        player_row = df[df["PLAYER_NAME"] == player_name]
+        plot_df = pd.concat([top_15, player_row])
         plot_df = plot_df.sort_values("TOTAL_OUTPUT", ascending=False)
     else:
         plot_df = top_15
-        
+
     # 2. Plot
     fig = go.Figure()
-    
+
     names = plot_df["PLAYER_NAME"].tolist()
-    
+
     # PTS Bar
     fig.add_trace(go.Bar(
         name="Points Scored", x=names, y=plot_df["PTS"],
-        marker_color=[COLOR_DENI if x == "Deni Avdija" else "#7f7f7f" for x in names]
+        marker_color=[COLOR_ACCENT if x == player_name else "#7f7f7f" for x in names]
     ))
-    
+
     # Created Bar
     fig.add_trace(go.Bar(
         name="Points Created (Est)", x=names, y=plot_df["PTS_CREATED"],
-        marker_color=[COLOR_HIGHLIGHT if x == "Deni Avdija" else "#1f77b4" for x in names]
+        marker_color=[COLOR_HIGHLIGHT if x == player_name else "#1f77b4" for x in names]
     ))
     
     fig.update_layout(
@@ -1159,40 +1170,53 @@ def plot_offensive_engine(deni_stats: dict, allstar_df: pd.DataFrame) -> go.Figu
     return fig
 
 
-def render_scouting_report():
-    """Renders the static scouting report text in a clean format."""
-    with st.expander("📋 READ: Scouting Report & Analysis (2025)", expanded=False):
-        st.markdown("""
+# Only Deni has a hand-written scouting report so far; other players get a generic
+# note until enough of their season is in the books to write one.
+SCOUTING_REPORTS = {
+    "deni_avdija": """
         ### 🧐 Analysis: The Expanded Role
-        **Early returns (11/26):** The most impressive aspect of Avdija’s star-making season has been his capacity for scaling up his production to fit his expanded role. 
+        **Early returns (11/26):** The most impressive aspect of Avdija’s star-making season has been his capacity for scaling up his production to fit his expanded role.
         * **Pick-and-Roll Volume:** Avdija has already logged more possessions as a P&R initiator than in his full years 2 or 3.
         * **Elite Driving:** He is fully tapping into his physicality. No one in the league drives more often, and few pass out of drives more frequently.
         * **Free Throw Rate:** His downhill speed and "incessant drives" have him getting to the line at a rate on par with **Shai Gilgeous-Alexander**.
-        
+
         ---
         ### ⚡ Defining Trait: The One-Man Fast Break
         Avdija has become a reliable one-man fast break. He is equally adept at finishing at full tilt or shifting gears (Euro-step or shoulder bumps) to dislodge defenders.
-        
+
         > *"The most bullish sign of Avdija’s ascent might be his ability to draw contact. Avdija had one of the highest free throw attempt rates in the league... the only other non-bigs in his cohort were **Jimmy Butler** and **James Harden**."*
-        
+
         ---
         ### 🧬 Modern NBA Archetype: The Multidimensional Wing
         Multidimensional wings are the lifeblood of the modern game. Avdija represents a high-reward venture that is paying off:
         * **Growth:** Incremental growth throughout his career, with breakthroughs in years 4 and 5.
         * **Foundation:** His vision and ballhandling got him noticed; his defense and rebounding instincts kept him on the floor long enough to see the fruits of his labor come to the fore.
-        """)
+        """,
+}
+DEFAULT_SCOUTING_REPORT = """
+Scouting notes are still being written for this player — check back once more of the
+season is in the books. In the meantime, the Dashboard and Career Analysis pages track
+his per-game trends as they happen.
+"""
+
+
+def render_scouting_report(player_key: str, player_name: str):
+    """Renders the static scouting report text in a clean format."""
+    body = SCOUTING_REPORTS.get(player_key, DEFAULT_SCOUTING_REPORT)
+    with st.expander(f"📋 READ: Scouting Report & Analysis — {player_name}", expanded=False):
+        st.markdown(body)
 
 
 # -----------------------------
 # Hero + KPI helpers
 # -----------------------------
-def render_topbar():
-    """Sticky brand bar shown on every page (mirrors the WC2026 site header)."""
+def render_topbar(player_name: str):
+    """Sticky brand bar shown on every page (mirrors the XLALIGA site header)."""
     st.markdown(
-        """
+        f"""
         <div class="topbar">
             <span class="dot"></span>
-            <span class="tb-title">Deni Avdija <span>Analytics</span></span>
+            <span class="tb-title">{player_name} <span>Analytics</span></span>
             <span class="tb-sub">360&deg; Performance Dashboard</span>
         </div>
         """,
@@ -1200,15 +1224,15 @@ def render_topbar():
     )
 
 
-def render_hero():
+def render_hero(player_name: str, team_full: str, position: str, headshot: str):
     """Branded hero banner for the Dashboard landing page."""
     st.markdown(
         f"""
         <div class="deni-hero">
-            <img src="{HEADSHOT_URL}" alt="Deni Avdija" />
+            <img src="{headshot}" alt="{player_name}" />
             <div>
-                <div class="kicker">{TEAM_FULL} &middot; Forward</div>
-                <div class="name">Deni Avdija</div>
+                <div class="kicker">{team_full} &middot; {position}</div>
+                <div class="name">{player_name}</div>
                 <div class="sub">360&deg; Performance Analytics &middot; {CURRENT_SEASON} Season</div>
             </div>
         </div>
@@ -1268,53 +1292,85 @@ def render_kpi_strip(logs_cur: pd.DataFrame, logs_prev: pd.DataFrame):
 def main():
     st.sidebar.markdown(
         f"""
+        <div style="padding:2px 0 10px 0;">
+            <div style="font-family:{('Barlow Condensed')};font-size:20px;font-weight:800;
+                        font-style:italic;text-transform:uppercase;color:#d7ff3a;">
+                Israeli NBA Watch
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    player_key = st.sidebar.selectbox(
+        "Player", options=PLAYER_ORDER, format_func=lambda k: PLAYERS[k]["name"], index=0,
+    )
+    meta = PLAYERS[player_key]
+    PLAYER_NAME = meta["name"]
+    PLAYER_ID = meta["id"]
+    HEADSHOT_URL = headshot_url(PLAYER_ID)
+    TEAM_FULL = meta["team_full"]
+    POSITION = meta["position"]
+
+    st.sidebar.markdown(
+        f"""
         <div class="sb-card">
-            <img src="{HEADSHOT_URL}" alt="Deni Avdija" />
-            <div class="sb-name">Deni Avdija</div>
+            <img src="{HEADSHOT_URL}" alt="{PLAYER_NAME}" />
+            <div class="sb-name">{PLAYER_NAME}</div>
             <div class="sb-role">{TEAM_FULL}</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    if st.sidebar.button("🔄 Refresh Data"):
-        with st.spinner("Forcing update..."):
-            fetch_data.smart_update(force_refresh=True)
+    # Lightweight per-player freshness check (never a full multi-player scrape — see
+    # check_and_update_data's docstring).
+    check_and_update_data(player_key, meta)
+
+    if st.sidebar.button(f"🔄 Refresh {PLAYER_NAME}"):
+        with st.spinner(f"Refreshing {PLAYER_NAME}..."):
+            fetch_data.smart_update(force_refresh=True, player_key=player_key)
         st.success("Data updated!")
         time.sleep(1)
         st.rerun()
-    
+    with st.sidebar.expander("Advanced"):
+        if st.button("🔄 Refresh ALL players + league data"):
+            with st.spinner("Refreshing every player and shared league data (this can take a few minutes)..."):
+                fetch_data.smart_update(force_refresh=True)
+            st.success("Data updated!")
+            time.sleep(1)
+            st.rerun()
+
     # Data Status Display
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 📊 Data Status")
-    
+
     if Path(DATA_FILE).exists():
         # Show last update time
         fetched_at = None
         game_count = 0
-        
+
         try:
             with open(DATA_FILE, "rb") as f:
                 temp_data = pickle.load(f)
             fetched_at = temp_data.get("fetched_at")
-            logs = temp_data.get(season_data_key(CURRENT_SEASON), pd.DataFrame())
+            player_temp = temp_data.get("players", {}).get(player_key, {})
+            logs = player_temp.get(season_data_key(CURRENT_SEASON), pd.DataFrame())
             game_count = len(logs) if not logs.empty else 0
         except:
             pass
-        
+
         if fetched_at:
             try:
                 update_time = datetime.fromisoformat(fetched_at)
                 st.sidebar.caption(f"📅 Last updated: {update_time.strftime('%b %d, %H:%M')}")
             except:
                 st.sidebar.caption("📅 Last updated: Recently")
-        
-        if game_count > 0:
-            st.sidebar.caption(f"🏀 Games tracked: **{game_count}**")
-        
+
+        st.sidebar.caption(f"🏀 {PLAYER_NAME} games tracked: **{game_count}**")
+
         # Show next game info instead of countdown
         try:
-            next_game = fetch_data.get_next_portland_game()
+            next_game = fetch_data.get_next_game(meta["team_id"])
             if next_game:
                 location = "vs" if next_game['is_home'] else "@"
                 st.sidebar.caption(f"🗓️ Next game: {location} {next_game['opponent']} ({next_game['date_str']})")
@@ -1324,14 +1380,14 @@ def main():
             pass
     else:
         st.sidebar.warning("⚠️ No data file found")
-    
+
     st.sidebar.markdown("---")
 
     page = st.sidebar.radio("Navigate", ["Dashboard", "Career Analysis", "League Trends", "Raw Data", "Shot Maps", "Research: Deep Dive", "About Me"])
 
     st.sidebar.markdown("---")
     st.sidebar.markdown(
-        f"<a href='{REPO_URL}' target='_blank' style='color:#3ddc97;text-decoration:none;font-weight:600;'>⭐ View source on GitHub</a>",
+        f"<a href='{REPO_URL}' target='_blank' style='color:#d7ff3a;text-decoration:none;font-weight:600;'>⭐ View source on GitHub</a>",
         unsafe_allow_html=True,
     )
 
@@ -1339,47 +1395,53 @@ def main():
     mtime = 0
     if Path(DATA_FILE).exists():
         mtime = Path(DATA_FILE).stat().st_mtime
-    
+
     data = load_nba_data(mtime)
     if not data:
         st.error(f"Missing data file. Run `python fetch_data.py`.")
         st.stop()
-        
-    # Unpack
-    career_basic = data.get("career_basic", pd.DataFrame())
-    career_adv = data.get("career_advanced", pd.DataFrame())
-    logs_26 = data.get(season_data_key(CURRENT_SEASON), pd.DataFrame())
-    logs_25 = data.get(season_data_key(PREV_SEASON), pd.DataFrame())
-    logs_23 = data.get(season_data_key(PREV2_SEASON), pd.DataFrame())
-    shot_charts = data.get("shot_charts", {})
+
+    player_data = data.get("players", {}).get(player_key, {})
+    if not player_data and page != "About Me":
+        st.warning(f"No data fetched yet for {PLAYER_NAME}. Run `python fetch_data.py --player {player_key}`, "
+                   f"or click **Refresh {PLAYER_NAME}** in the sidebar.")
+        st.stop()
+
+    # Unpack (player-specific)
+    career_basic = player_data.get("career_basic", pd.DataFrame())
+    career_adv = player_data.get("career_advanced", pd.DataFrame())
+    logs_26 = player_data.get(season_data_key(CURRENT_SEASON), pd.DataFrame())
+    logs_25 = player_data.get(season_data_key(PREV_SEASON), pd.DataFrame())
+    logs_23 = player_data.get(season_data_key(PREV2_SEASON), pd.DataFrame())
+    shot_charts = player_data.get("shot_charts", {})
+
+    # Unpack (shared across all players)
     allstar = data.get("allstar_stats", pd.DataFrame())
     allstar_detailed = data.get("allstar_detailed_stats", pd.DataFrame())
-    
-    # NEW: 25/26 RACE
     allstar_26 = data.get("allstar_stats_26", pd.DataFrame())
     allstar_detailed_26 = data.get("allstar_detailed_26", pd.DataFrame())
-    
     league_ft = data.get("league_ft_stats", pd.DataFrame())
-    
-    # NEW: League Trends Data
     drives_df = data.get("drives_data", pd.DataFrame())
     misc_df = data.get("misc_stats", pd.DataFrame())
     passing_df = data.get("passing_data", pd.DataFrame())
     heliocentric_df = data.get("heliocentric_data", pd.DataFrame())
-    
+
     # 1. Patch Career Stats
     career_basic = patch_career_stats(career_basic, logs_26)
     career_df = merge_career_frames(career_basic, career_adv)
 
     # Sticky brand bar (all pages)
-    render_topbar()
+    render_topbar(PLAYER_NAME)
 
     # -----------------------------
     # PAGE: Dashboard
     # -----------------------------
     if page == "Dashboard":
-        render_hero()
-        st.info("🔥 **#1 in NBA Free Throw Attempts** (250+ FTA)")
+        render_hero(PLAYER_NAME, TEAM_FULL, POSITION, HEADSHOT_URL)
+        if logs_26.empty and logs_25.empty and logs_23.empty:
+            st.info(f"🏀 {PLAYER_NAME} hasn't logged an NBA game yet — check back once the season tips off.")
+        if player_key == "deni_avdija":
+            st.info("🔥 **#1 in NBA Free Throw Attempts** (250+ FTA)")
 
         # Season-at-a-glance KPI cards (current season vs prior full season)
         render_kpi_strip(logs_26, logs_25)
@@ -1393,7 +1455,7 @@ def main():
             avg_min = df["MIN"].mean()
             
             fig = go.Figure()
-            fig.add_trace(go.Bar(x=df["GAME_DATE"], y=df["PTS"], marker_color=["#2ca02c" if w=="W" else "#d7191c" for w in df["WL"]], name="PTS"))
+            fig.add_trace(go.Bar(x=df["GAME_DATE"], y=df["PTS"], marker_color=[COLOR_ACCENT if w=="W" else COLOR_NEGATIVE for w in df["WL"]], name="PTS"))
             fig.add_trace(go.Scatter(x=df["GAME_DATE"], y=df["MIN"], mode="lines", name="MIN", yaxis="y2", line=dict(color="gold", width=2)))
             
             # Averages
@@ -1413,7 +1475,7 @@ def main():
             avg_min = df["MIN"].mean()
             
             fig = go.Figure()
-            fig.add_trace(go.Bar(x=df["GAME_DATE"], y=df["PTS"], marker_color=["#2ca02c" if w=="W" else "#d7191c" for w in df["WL"]], name="PTS"))
+            fig.add_trace(go.Bar(x=df["GAME_DATE"], y=df["PTS"], marker_color=[COLOR_ACCENT if w=="W" else COLOR_NEGATIVE for w in df["WL"]], name="PTS"))
             fig.add_trace(go.Scatter(x=df["GAME_DATE"], y=df["MIN"], mode="lines", name="MIN", yaxis="y2", line=dict(color="gold", width=2)))
             
             # Averages
@@ -1433,7 +1495,7 @@ def main():
             avg_min = df["MIN"].mean()
             
             fig = go.Figure()
-            fig.add_trace(go.Bar(x=df["GAME_DATE"], y=df["PTS"], marker_color=["#2ca02c" if w=="W" else "#d7191c" for w in df["WL"]], name="PTS"))
+            fig.add_trace(go.Bar(x=df["GAME_DATE"], y=df["PTS"], marker_color=[COLOR_ACCENT if w=="W" else COLOR_NEGATIVE for w in df["WL"]], name="PTS"))
             fig.add_trace(go.Scatter(x=df["GAME_DATE"], y=df["MIN"], mode="lines", name="MIN", yaxis="y2", line=dict(color="gold", width=2)))
             
             # Averages
@@ -1447,7 +1509,7 @@ def main():
     # PAGE: Career Analysis
     # -----------------------------
     elif page == "Career Analysis":
-        st.title("Career Trajectory Analysis")
+        st.title(f"{PLAYER_NAME} — Career Trajectory Analysis")
         if not career_df.empty:
             # Per Game Stats
             st.subheader("Per Game Stats")
@@ -1489,28 +1551,29 @@ def main():
                 plot_df["Season"] = plot_df.index
             
             # Usage Rate
-            st.subheader("Usage Rate")
-            st.caption("""
-            **Definition:** Percentage of team plays used by the player while on floor.
-            * **High (>30%):** Primary Scorers (Luka, Giannis) | **Low (<15%):** Role Players
-            """)
-            fig = px.line(plot_df, x="Season", y="USG_PCT", markers=True, title="Usage %", 
-                          labels={"USG_PCT": "Usage Percentage", "Season": "Season"})
-            fig.add_hline(y=0.20, line_dash="dash", annotation_text="League Avg (20%)")
-            st.plotly_chart(fig, width="stretch", config=PLOT_CONFIG)
-
-            st.divider()
+            if "USG_PCT" in plot_df.columns:
+                st.subheader("Usage Rate")
+                st.caption("""
+                **Definition:** Percentage of team plays used by the player while on floor.
+                * **High (>30%):** Primary Scorers (Luka, Giannis) | **Low (<15%):** Role Players
+                """)
+                fig = px.line(plot_df, x="Season", y="USG_PCT", markers=True, title="Usage %",
+                              labels={"USG_PCT": "Usage Percentage", "Season": "Season"})
+                fig.add_hline(y=0.20, line_dash="dash", annotation_text="League Avg (20%)")
+                st.plotly_chart(fig, width="stretch", config=PLOT_CONFIG)
+                st.divider()
 
             # True Shooting %
-            st.subheader("True Shooting %")
-            st.caption("""
-            **Definition:** Shooting efficiency adjusting for 3-pointers (1.5x) and Free Throws.
-            * **Elite (>60%):** Curry/Jokic | **Avg (~58%)** | **Poor (<52%)**
-            """)
-            fig = px.line(plot_df, x="Season", y="TS_PCT", markers=True, title="TS %",
-                          labels={"TS_PCT": "True Shooting Percentage", "Season": "Season"})
-            fig.add_hline(y=0.58, line_dash="dash", annotation_text="League Avg (58%)")
-            st.plotly_chart(fig, width="stretch", config=PLOT_CONFIG)
+            if "TS_PCT" in plot_df.columns:
+                st.subheader("True Shooting %")
+                st.caption("""
+                **Definition:** Shooting efficiency adjusting for 3-pointers (1.5x) and Free Throws.
+                * **Elite (>60%):** Curry/Jokic | **Avg (~58%)** | **Poor (<52%)**
+                """)
+                fig = px.line(plot_df, x="Season", y="TS_PCT", markers=True, title="TS %",
+                              labels={"TS_PCT": "True Shooting Percentage", "Season": "Season"})
+                fig.add_hline(y=0.58, line_dash="dash", annotation_text="League Avg (58%)")
+                st.plotly_chart(fig, width="stretch", config=PLOT_CONFIG)
 
     # -----------------------------
     # PAGE: League Trends
@@ -1637,7 +1700,7 @@ def main():
     # PAGE: Raw Data
     # -----------------------------
     elif page == "Raw Data":
-        st.title("Raw Data & Custom Trends")
+        st.title(f"{PLAYER_NAME} — Raw Data & Custom Trends")
         
         st.subheader("Interactive Trend Viewer")
         all_cols = career_df.columns.tolist()
@@ -1691,8 +1754,12 @@ def main():
     # PAGE: Shot Maps 
     # -----------------------------
     elif page == "Shot Maps":
-        st.title("Shot Analysis")
-        
+        st.title(f"{PLAYER_NAME} — Shot Analysis")
+
+        if not shot_charts:
+            st.info(f"No shot chart data available yet for {PLAYER_NAME}.")
+            st.stop()
+
         c_ctrl, c_view = st.columns([1, 4])
         with c_ctrl:
             compare = st.checkbox("Compare Mode", value=False)
@@ -1723,7 +1790,7 @@ def main():
                 st.download_button(
                     label="💾 Download Interactive HTML",
                     data=html_bytes,
-                    file_name=f"deni_avdija_{s_a}_{view_type.replace(' ', '_')}.html",
+                    file_name=f"{player_key}_{s_a}_{view_type.replace(' ', '_')}.html",
                     mime="text/html"
                 )
             else:
@@ -1744,10 +1811,10 @@ def main():
     # PAGE: Deep Dive (RESTORED GRAPHS)
     # -----------------------------
     elif page == "Research: Deep Dive":
-        st.title("All-Star Comparison")
-        
-        render_scouting_report()
-        
+        st.title(f"{PLAYER_NAME} — All-Star Comparison")
+
+        render_scouting_report(player_key, PLAYER_NAME)
+
         # --- NEW SECTION: Free Throw Leaders ---
         if not league_ft.empty:
             st.divider()
@@ -1756,6 +1823,9 @@ def main():
             # 0. Base Data: Top 10 by FTM (The "Leaders")
             # We filter first, then let user RE-SORT this specific group.
             ft_df = league_ft.sort_values("FTM", ascending=False).head(10).reset_index(drop=True)
+            if PLAYER_NAME not in ft_df["PLAYER_NAME"].values:
+                own_row = league_ft[league_ft["PLAYER_NAME"] == PLAYER_NAME]
+                ft_df = pd.concat([ft_df, own_row]).reset_index(drop=True)
 
             # 1. Dynamic Sort Widget
             sort_metric = st.selectbox(
@@ -1780,14 +1850,14 @@ def main():
             df_display.index.name = "Rank"
 
             # 4. Highlight Logic
-            def highlight_deni(row):
-                if row.get("PLAYER_NAME") == "Deni Avdija":
-                    return ['background-color: #00CC96; color: black'] * len(row)
+            def highlight_player(row):
+                if row.get("PLAYER_NAME") == PLAYER_NAME:
+                    return ['background-color: #d7ff3a; color: #0c0d10'] * len(row)
                 return [''] * len(row)
-            
+
             # 5. Render
             st.dataframe(
-                df_display.style.apply(highlight_deni, axis=1),
+                df_display.style.apply(highlight_player, axis=1),
                 width="stretch",
                 column_config={
                     "FT_PCT": st.column_config.NumberColumn("FT%", format="%.1%"),
@@ -1799,74 +1869,80 @@ def main():
                 key=f"ft_leaderboard_{sort_metric}"
             )
         # ---------------------------------------
-        
 
-        
-        
+        if logs_26.empty:
+            st.divider()
+            st.info(f"{PLAYER_NAME} hasn't played an NBA game yet this season — the All-Star "
+                     "comparison lab activates once box scores are logged.")
+            st.stop()
+
+        # Selected player's current-season per-game stats — computed once, shared by both tabs.
+        deni_stats = {
+            "PTS": logs_26["PTS"].mean(), "REB": logs_26["REB"].mean(), "AST": logs_26["AST"].mean(),
+            "STL": logs_26["STL"].mean(), "BLK": logs_26["BLK"].mean(), "TOV": logs_26["TOV"].mean(),
+        }
+        if not career_df.empty:
+            cur = career_df[career_df["SEASON_ID"] == CURRENT_SEASON]
+            if not cur.empty:
+                deni_stats["USG_PCT"] = cur.iloc[0]["USG_PCT"]
+                deni_stats["TS_PCT"] = cur.iloc[0]["TS_PCT"]
+
         # TABS FOR COMPARISON
         tab_bench, tab_race = st.tabs([
             f"Benchmark ({season_label(BENCHMARK_SEASON)} All-Stars)",
             f"The Race ({season_label(CURRENT_SEASON)} All-Star Stats)",
         ])
 
+        @st.cache_data
+        def get_face_url(name):
+            try:
+                hits = players.find_players_by_full_name(name)
+                if hits:
+                    pid = hits[0]['id']
+                    return f"https://cdn.nba.com/headshots/nba/latest/1040x760/{pid}.png"
+            except: pass
+            return None
+
+        def hl_player(x):
+            return ['background-color: #d7ff3a; color: #0c0d10' if x["PLAYER_NAME"] == PLAYER_NAME else '' for _ in x]
+
         # --- TAB 1: BENCHMARK (Frozen) ---
         with tab_bench:
-            st.caption(f"Comparing Deni's **current** stats against the **final** stats of {season_label(BENCHMARK_SEASON)} All-Stars.")
-            
-            if not allstar.empty and not logs_26.empty:
-                # Prepare data
-                deni_stats = {
-                    "PTS": logs_26["PTS"].mean(), "REB": logs_26["REB"].mean(), "AST": logs_26["AST"].mean(),
-                    "STL": logs_26["STL"].mean(), "BLK": logs_26["BLK"].mean(), "TOV": logs_26["TOV"].mean(),
-                }
-                if not career_df.empty:
-                    cur = career_df[career_df["SEASON_ID"] == CURRENT_SEASON]
-                    if not cur.empty:
-                        deni_stats["USG_PCT"] = cur.iloc[0]["USG_PCT"]
-                        deni_stats["TS_PCT"] = cur.iloc[0]["TS_PCT"]
+            st.caption(f"Comparing {PLAYER_NAME}'s **current** stats against the **final** stats of {season_label(BENCHMARK_SEASON)} All-Stars.")
 
+            if not allstar.empty:
                 # 1. VERDICT & THRESHOLD
                 st.subheader("1. The All-Star Threshold")
                 c1, c2 = st.columns([2, 1])
                 with c1:
-                    st.plotly_chart(plot_allstar_thresh(deni_stats, allstar), width="stretch", config=PLOT_CONFIG)
+                    st.plotly_chart(plot_allstar_thresh(PLAYER_NAME, deni_stats, allstar), width="stretch", config=PLOT_CONFIG)
                 with c2:
-                    analytical_verdict(deni_stats, allstar)
+                    analytical_verdict(PLAYER_NAME, deni_stats, allstar)
 
                 # 2. TRIPLE THREAT
                 st.divider()
                 st.subheader("2. The Triple Threat")
                 show_2d = st.toggle("Switch to 2D Bubble View", value=False, key="toggle_2d_bench")
-                st.plotly_chart(plot_triple_threat(allstar, deni_stats, show_2d), width="stretch", config=PLOT_CONFIG)
+                st.plotly_chart(plot_triple_threat(allstar, PLAYER_NAME, deni_stats, show_2d), width="stretch", config=PLOT_CONFIG)
 
                 # 3. SEPARATION CHART
                 if not allstar_detailed.empty:
                     st.divider()
                     st.subheader("3. Separation Chart (Usage vs Efficiency)")
-                    
-                    @st.cache_data
-                    def get_face_url(name):
-                        try:
-                            hits = players.find_players_by_full_name(name)
-                            if hits:
-                                pid = hits[0]['id']
-                                return f"https://cdn.nba.com/headshots/nba/latest/1040x760/{pid}.png"
-                        except: pass
-                        return None
 
                     fig = go.Figure()
 
-                    # Add Deni Text Label Only (No Marker)
+                    # Add selected player's text label only (no marker)
                     if "USG_PCT" in deni_stats:
                         dx, dy = deni_stats["USG_PCT"]*100, deni_stats["TS_PCT"]*100
                         fig.add_trace(go.Scatter(
-                            x=[dx], y=[dy], mode="text", 
-                            name="Deni", text=["Deni"], textposition="top center",
-                            textfont=dict(size=14, color="#e8edf7", family="Arial Black")
+                            x=[dx], y=[dy], mode="text",
+                            name=PLAYER_NAME, text=[PLAYER_NAME.split()[0]], textposition="top center",
+                            textfont=dict(size=14, color="#f5f7fa", family="Arial Black")
                         ))
-                        
-                        # Add Deni Face
-                        d_url = get_face_url("Deni Avdija")
+
+                        # Add player's face
+                        d_url = get_face_url(PLAYER_NAME)
                         if d_url:
                             fig.add_layout_image(dict(
                                 source=d_url, xref="x", yref="y", x=dx, y=dy,
@@ -1875,8 +1951,8 @@ def main():
 
                     # Add All-Stars Images
                     for _, row in allstar_detailed.iterrows():
-                        if row["PLAYER_NAME"] == "Deni Avdija": continue # Skip Deni
-                        
+                        if row["PLAYER_NAME"] == PLAYER_NAME: continue # Skip — added manually above
+
                         url = get_face_url(row["PLAYER_NAME"])
                         if url:
                             fig.add_layout_image(dict(
@@ -1884,13 +1960,14 @@ def main():
                                 x=row["USG_PCT"]*100, y=row["TS_PCT"]*100,
                                 sizex=1.5, sizey=1.5, xanchor="center", yanchor="middle", layer="above"
                             ))
-                            
+
                     # Invisible markers for hover
+                    other_stars = allstar_detailed[allstar_detailed["PLAYER_NAME"] != PLAYER_NAME]
                     fig.add_trace(go.Scatter(
-                        x=allstar_detailed[allstar_detailed["PLAYER_NAME"] != "Deni Avdija"]["USG_PCT"]*100, 
-                        y=allstar_detailed[allstar_detailed["PLAYER_NAME"] != "Deni Avdija"]["TS_PCT"]*100, 
-                        mode="markers", name="All-Stars", 
-                        text=allstar_detailed[allstar_detailed["PLAYER_NAME"] != "Deni Avdija"]["PLAYER_NAME"],
+                        x=other_stars["USG_PCT"]*100,
+                        y=other_stars["TS_PCT"]*100,
+                        mode="markers", name="All-Stars",
+                        text=other_stars["PLAYER_NAME"],
                         marker=dict(color="rgba(0,0,0,0)", size=30), hoverinfo="text+x+y"
                     ))
 
@@ -1905,74 +1982,72 @@ def main():
                 st.divider()
                 st.subheader("4. Full League Comparison Table")
                 rank_metric = st.selectbox("🏆 Rank Players By:", ["PTS", "REB", "AST", "STL", "BLK", "TOV"], index=0, key="rank_bench")
-                
+
                 t_df = allstar[["PLAYER_NAME", "PTS", "REB", "AST", "STL", "BLK", "TOV", "GP"]].copy()
-                
-                # Remove Deni if he exists in the fetched data (to avoid duplication with our manual row)
-                t_df = t_df[t_df["PLAYER_NAME"] != "Deni Avdija"]
-                
-                d_row = {"PLAYER_NAME": "Deni Avdija", "GP": len(logs_26)}
+
+                # Remove the selected player if they exist in the fetched data (avoid duplication)
+                t_df = t_df[t_df["PLAYER_NAME"] != PLAYER_NAME]
+
+                d_row = {"PLAYER_NAME": PLAYER_NAME, "GP": len(logs_26)}
                 for k in ["PTS", "REB", "AST", "STL", "BLK", "TOV"]: d_row[k] = deni_stats[k]
-                
+
                 t_df = pd.concat([t_df, pd.DataFrame([d_row])], ignore_index=True)
                 t_df = t_df.sort_values(rank_metric, ascending=False).reset_index(drop=True)
                 t_df.insert(0, "Rank", range(1, len(t_df) + 1))
-                
+
                 cfg = {c: st.column_config.NumberColumn(format="%.1f") for c in ["PTS", "REB", "AST", "STL", "BLK", "TOV"]}
-                def hl_deni(x):
-                    return ['background-color: #00CC96; color: black' if x["PLAYER_NAME"] == "Deni Avdija" else '' for _ in x]
-                st.dataframe(t_df.style.apply(hl_deni, axis=1), width="stretch", hide_index=True, column_config=cfg)
+                st.dataframe(t_df.style.apply(hl_player, axis=1), width="stretch", hide_index=True, column_config=cfg)
 
                 # 5. Advanced Case Studies
                 st.divider()
                 st.subheader("5. Advanced Case Studies")
                 c_adv1, c_adv2 = st.columns(2)
                 with c_adv1:
-                    st.plotly_chart(plot_versatility_radar(deni_stats, allstar), width="stretch", config=PLOT_CONFIG)
+                    st.plotly_chart(plot_versatility_radar(PLAYER_NAME, deni_stats, allstar), width="stretch", config=PLOT_CONFIG)
                 with c_adv2:
-                    st.plotly_chart(plot_offensive_engine(deni_stats, allstar), width="stretch", config=PLOT_CONFIG)
+                    st.plotly_chart(plot_offensive_engine(PLAYER_NAME, deni_stats, allstar), width="stretch", config=PLOT_CONFIG)
 
         # --- TAB 2: THE RACE (current-season, live) ---
         with tab_race:
-            st.caption(f"Comparing Deni's **current** stats against the **current ({season_label(CURRENT_SEASON)})** stats of the same All-Star cohort.")
-            
+            st.caption(f"Comparing {PLAYER_NAME}'s **current** stats against the **current ({season_label(CURRENT_SEASON)})** stats of the same All-Star cohort.")
+
             if allstar_26.empty:
-                st.warning(f"⚠️ No {CURRENT_SEASON} All-Star data found. Please click 'Refresh Data' in the sidebar to fetch the latest comparison stats.")
+                st.warning(f"⚠️ No {CURRENT_SEASON} All-Star data found. Please click 'Refresh {PLAYER_NAME}' in the sidebar to fetch the latest comparison stats.")
             else:
-                # Use same Deni stats
+                # Use same per-game stats computed above
                 deni_stats_race = deni_stats.copy()
 
                 # 1. VERDICT & THRESHOLD - RACE
                 st.subheader("1. The Race Threshold")
                 c1r, c2r = st.columns([2, 1])
                 with c1r:
-                    st.plotly_chart(plot_allstar_thresh(deni_stats_race, allstar_26), width="stretch", config=PLOT_CONFIG)
+                    st.plotly_chart(plot_allstar_thresh(PLAYER_NAME, deni_stats_race, allstar_26), width="stretch", config=PLOT_CONFIG)
                 with c2r:
-                    analytical_verdict(deni_stats_race, allstar_26)
+                    analytical_verdict(PLAYER_NAME, deni_stats_race, allstar_26)
 
                 # 2. TRIPLE THREAT - RACE
                 st.divider()
                 st.subheader(f"2. The Triple Threat ({season_label(CURRENT_SEASON)})")
                 show_2d_race = st.toggle("Switch to 2D Bubble View", value=False, key="toggle_2d_race")
-                st.plotly_chart(plot_triple_threat(allstar_26, deni_stats_race, show_2d_race), width="stretch", config=PLOT_CONFIG)
+                st.plotly_chart(plot_triple_threat(allstar_26, PLAYER_NAME, deni_stats_race, show_2d_race), width="stretch", config=PLOT_CONFIG)
 
                 # 3. SEPARATION CHART - RACE
                 if not allstar_detailed_26.empty:
                     st.divider()
                     st.subheader(f"3. Separation Chart ({season_label(CURRENT_SEASON)} Performance)")
-                    
+
                     fig_race = go.Figure()
 
-                    # Add Deni Text Label Only (No Marker)
+                    # Add selected player's text label only (no marker)
                     if "USG_PCT" in deni_stats_race:
                         dx, dy = deni_stats_race["USG_PCT"]*100, deni_stats_race["TS_PCT"]*100
                         fig_race.add_trace(go.Scatter(
-                            x=[dx], y=[dy], mode="text", 
-                            name="Deni", text=["Deni"], textposition="top center",
-                            textfont=dict(size=14, color="#e8edf7", family="Arial Black")
+                            x=[dx], y=[dy], mode="text",
+                            name=PLAYER_NAME, text=[PLAYER_NAME.split()[0]], textposition="top center",
+                            textfont=dict(size=14, color="#f5f7fa", family="Arial Black")
                         ))
-                        # Add Deni Face
-                        d_url = get_face_url("Deni Avdija")
+                        # Add player's face
+                        d_url = get_face_url(PLAYER_NAME)
                         if d_url:
                             fig_race.add_layout_image(dict(
                                 source=d_url, xref="x", yref="y", x=dx, y=dy,
@@ -1981,8 +2056,8 @@ def main():
 
                     # Add All-Stars Images
                     for _, row in allstar_detailed_26.iterrows():
-                        if row["PLAYER_NAME"] == "Deni Avdija": continue # Skip Deni (Added manually above)
-                        
+                        if row["PLAYER_NAME"] == PLAYER_NAME: continue # Skip — added manually above
+
                         url = get_face_url(row["PLAYER_NAME"])
                         if url:
                             fig_race.add_layout_image(dict(
@@ -1990,13 +2065,14 @@ def main():
                                 x=row["USG_PCT"]*100, y=row["TS_PCT"]*100,
                                 sizex=1.5, sizey=1.5, xanchor="center", yanchor="middle", layer="above"
                             ))
-                            
+
                     # Invisible markers for hover
+                    other_stars_26 = allstar_detailed_26[allstar_detailed_26["PLAYER_NAME"] != PLAYER_NAME]
                     fig_race.add_trace(go.Scatter(
-                        x=allstar_detailed_26[allstar_detailed_26["PLAYER_NAME"] != "Deni Avdija"]["USG_PCT"]*100, 
-                        y=allstar_detailed_26[allstar_detailed_26["PLAYER_NAME"] != "Deni Avdija"]["TS_PCT"]*100, 
-                        mode="markers", name="All-Stars", 
-                        text=allstar_detailed_26[allstar_detailed_26["PLAYER_NAME"] != "Deni Avdija"]["PLAYER_NAME"],
+                        x=other_stars_26["USG_PCT"]*100,
+                        y=other_stars_26["TS_PCT"]*100,
+                        mode="markers", name="All-Stars",
+                        text=other_stars_26["PLAYER_NAME"],
                         marker=dict(color="rgba(0,0,0,0)", size=30), hoverinfo="text+x+y"
                     ))
 
@@ -2011,35 +2087,38 @@ def main():
                 st.divider()
                 st.subheader(f"4. {season_label(CURRENT_SEASON)} Leaderboard")
                 rank_metric_race = st.selectbox("🏆 Rank Players By:", ["PTS", "REB", "AST", "STL", "BLK", "TOV"], index=0, key="rank_race")
-                
+
                 t_df_race = allstar_26[["PLAYER_NAME", "PTS", "REB", "AST", "STL", "BLK", "TOV", "GP"]].copy()
-                
-                # Remove Deni if he exists in the fetched data (to avoid duplication with our manual row)
-                t_df_race = t_df_race[t_df_race["PLAYER_NAME"] != "Deni Avdija"]
-                
-                d_row = {"PLAYER_NAME": "Deni Avdija", "GP": len(logs_26)}
+
+                # Remove the selected player if they exist in the fetched data (avoid duplication)
+                t_df_race = t_df_race[t_df_race["PLAYER_NAME"] != PLAYER_NAME]
+
+                d_row = {"PLAYER_NAME": PLAYER_NAME, "GP": len(logs_26)}
                 for k in ["PTS", "REB", "AST", "STL", "BLK", "TOV"]: d_row[k] = deni_stats_race[k]
-                
+
                 t_df_race = pd.concat([t_df_race, pd.DataFrame([d_row])], ignore_index=True)
                 t_df_race = t_df_race.sort_values(rank_metric_race, ascending=False).reset_index(drop=True)
                 t_df_race.insert(0, "Rank", range(1, len(t_df_race) + 1))
-                
-                st.dataframe(t_df_race.style.apply(hl_deni, axis=1), width="stretch", hide_index=True, column_config=cfg)
+
+                cfg = {c: st.column_config.NumberColumn(format="%.1f") for c in ["PTS", "REB", "AST", "STL", "BLK", "TOV"]}
+                st.dataframe(t_df_race.style.apply(hl_player, axis=1), width="stretch", hide_index=True, column_config=cfg)
 
                 # 5. Advanced Case Studies - RACE
                 st.divider()
                 st.subheader(f"5. Advanced Case Studies ({season_label(CURRENT_SEASON)})")
                 c_adv1r, c_adv2r = st.columns(2)
                 with c_adv1r:
-                    st.plotly_chart(plot_versatility_radar(deni_stats_race, allstar_26), width="stretch", config=PLOT_CONFIG)
+                    st.plotly_chart(plot_versatility_radar(PLAYER_NAME, deni_stats_race, allstar_26), width="stretch", config=PLOT_CONFIG)
                 with c_adv2r:
-                    st.plotly_chart(plot_offensive_engine(deni_stats_race, allstar_26), width="stretch", config=PLOT_CONFIG)
+                    st.plotly_chart(plot_offensive_engine(PLAYER_NAME, deni_stats_race, allstar_26), width="stretch", config=PLOT_CONFIG)
 
-                # 6. What-If Analysis - RACE
-                st.divider()
-                st.subheader("6. What-If: Deni vs Luka Efficiency")
-                st.caption("How would Deni compare if he had Luka Dončić's usage rate (37.9%)?")
-                st.plotly_chart(plot_what_if_analysis(), width="stretch", config=PLOT_CONFIG)
+                # 6. What-If Analysis - RACE (Deni-specific easter egg; the hardcoded
+                # comparison numbers don't generalize to other players)
+                if player_key == "deni_avdija":
+                    st.divider()
+                    st.subheader("6. What-If: Deni vs Luka Efficiency")
+                    st.caption("How would Deni compare if he had Luka Dončić's usage rate (37.9%)?")
+                    st.plotly_chart(plot_what_if_analysis(), width="stretch", config=PLOT_CONFIG)
 
     elif page == "About Me":
         st.title("About the Creator")
