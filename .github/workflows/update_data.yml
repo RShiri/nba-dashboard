@@ -6,6 +6,10 @@ name: Update NBA Data
 # (career stats + game logs + shot charts for every player, plus League Trends /
 # All-Star cohort data) inline in a request. This workflow is what actually keeps
 # everything comprehensive and current.
+#
+# It also rebuilds nba_dashboard/data/*.json (build_data.py) — the static GitHub
+# Pages site at rshiri.github.io/nba-dashboard/ reads only those JSON files, so
+# nba_data.pkl alone updating is not enough to refresh it.
 
 on:
   schedule:
@@ -42,14 +46,17 @@ jobs:
             python fetch_data.py
           fi
 
+      - name: Rebuild static site JSON
+        run: python build_data.py
+
       - name: Commit updated data if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- nba_data.pkl; then
+          git add nba_data.pkl nba_dashboard/data
+          if git diff --cached --quiet; then
             echo "No data changes."
           else
-            git add nba_data.pkl
-            git commit -m "chore: refresh nba_data.pkl [automated]"
+            git commit -m "chore: refresh nba_data.pkl and static site data [automated]"
             git push
           fi

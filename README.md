@@ -2,7 +2,14 @@
 
 > **Real-time NBA performance analytics for every active Israeli NBA player** — Deni Avdija, Ben Saraf, Danny Wolf, and Emanuel Sharp — automatically updated after every game.
 
-### 🔗 Live demo: **https://nba-dashboard-ramshiri.streamlit.app/**
+This project ships as **two parallel front ends** sharing the same `nba_data.pkl`:
+
+| | URL | Stack | Notes |
+|---|---|---|---|
+| **Static site** | **https://rshiri.github.io/nba-dashboard/** | Plain HTML/CSS/JS + Plotly.js, served by GitHub Pages | No server, no cold start — just files. Reads pre-built JSON under `nba_dashboard/data/`. |
+| **Streamlit app** | **https://nba-dashboard-ramshiri.streamlit.app/** | Python + Streamlit | Adds the live "quick refresh" on-page-load check and manual refresh buttons. |
+
+If the Streamlit app feels slow to spin up (Streamlit Community Cloud sleeps idle apps), the GitHub Pages link is the faster option — it's genuinely static, so there's nothing to wake up.
 
 [![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=Streamlit&logoColor=white)](https://share.streamlit.io/)
 [![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
@@ -85,11 +92,19 @@ A sidebar player switcher re-renders every page for whichever player is selected
 nba-dashboard/
 ├── app.py                     # Main Streamlit dashboard (player switcher + theme + dynamic seasons)
 ├── fetch_data.py              # NBA API data fetcher (multi-player) + auto-update & season logic
-├── auto_update.py             # Git automation script
+├── build_data.py              # Exports nba_data.pkl -> nba_dashboard/data/*.json for the static site
+├── auto_update.py             # Git automation script (also rebuilds + commits the static site data)
 ├── nba_data.pkl               # Cached NBA data (auto-generated) — keyed by player under "players"
+├── index.html                 # Root redirect -> nba_dashboard/index.html (for GitHub Pages)
+├── nba_dashboard/              # Static site (GitHub Pages) — plain HTML/CSS/JS, no server
+│   ├── index.html              # Page shell (sidebar, topbar, #page-content mount point)
+│   ├── styles.css               # Broadcast Kinetic theme, ported 1:1 from the Streamlit CSS
+│   ├── app.js                    # Router + every page's rendering logic (vanilla JS + Plotly.js)
+│   ├── vendor/plotly.min.js       # Vendored Plotly.js (no runtime CDN dependency)
+│   └── data/                      # Generated JSON (meta, shared, zones, one file per player)
 ├── requirements.txt           # Python dependencies
 ├── .streamlit/config.toml     # Dark theme (Broadcast Kinetic palette)
-├── .github/workflows/         # Scheduled full data refresh (all players + shared league data)
+├── .github/workflows/         # Scheduled full data refresh (all players + shared league data + static JSON)
 ├── profile_pic.png            # About Me photo
 ├── DEPLOYMENT_GUIDE.md        # Streamlit Cloud deployment instructions
 └── README.md                  # This file
@@ -277,6 +292,16 @@ Or just one player: `python fetch_data.py --player danny_wolf`
 
 Or click **🔄 Refresh &lt;Player&gt;** (fast, one player) or **Refresh ALL players + league data**
 (slower, under "Advanced ▾") in the dashboard sidebar.
+
+`fetch_data.py` only updates `nba_data.pkl`. To also refresh the **static site's** JSON:
+
+```bash
+python build_data.py
+```
+
+The sidebar buttons and the GitHub Action already do this automatically — you only need
+to run it by hand if you ran `fetch_data.py` directly and want the static site (not just
+the Streamlit app) to reflect the new data right away.
 
 ---
 

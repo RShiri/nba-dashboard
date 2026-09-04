@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Israeli NBA Analytics</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="vendor/plotly.min.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <span class="dot"></span>
+    <span class="tb-title" id="topbar-title">Israeli NBA <span>Analytics</span></span>
+    <span class="tb-sub">360&deg; Performance Dashboard</span>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand-title">Israeli NBA Watch</div>
+      <div class="brand-sub">360&deg; Performance Analytics</div>
+
+      <label class="field-label" for="player-select">Player</label>
+      <select id="player-select"></select>
+
+      <div class="player-card" id="player-card"></div>
+
+      <ul class="nav" id="nav-list">
+        <li><button data-page="dashboard">Dashboard</button></li>
+        <li><button data-page="career">Career Analysis</button></li>
+        <li><button data-page="league">League Trends</button></li>
+        <li><button data-page="raw">Raw Data</button></li>
+        <li><button data-page="shots">Shot Maps</button></li>
+        <li><button data-page="deepdive">Research: Deep Dive</button></li>
+        <li><button data-page="about">About Me</button></li>
+      </ul>
+
+      <div class="status-block" id="status-block"></div>
+
+      <div class="sidebar-footer">
+        <a href="https://github.com/RShiri/nba-dashboard" target="_blank">&#9733; View source on GitHub</a>
+      </div>
+    </aside>
+
+    <main id="page-content">
+      <p style="color: var(--muted)">Loading&hellip;</p>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

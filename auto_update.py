@@ -46,20 +46,30 @@ def auto_commit_and_push(message: str = None) -> bool:
     
     # Get script directory
     script_dir = Path(__file__).parent
-    
+
     # 1. Check if we're in a git repository
     success, output = run_git_command(["git", "status"], cwd=script_dir)
     if not success:
         print("❌ Not a git repository or git not installed")
         return False
-    
-    # 2. Add the data file
-    print("\n📦 Adding nba_data.pkl to staging...")
-    success, output = run_git_command(["git", "add", "nba_data.pkl"], cwd=script_dir)
+
+    # 1b. Rebuild the static site's JSON so it doesn't go stale relative to
+    # nba_data.pkl (rshiri.github.io/nba-dashboard/ reads only these files).
+    print("\n🧱 Rebuilding static site data (build_data.py)...")
+    try:
+        import build_data
+        build_data.build()
+        print("✅ Static site data rebuilt")
+    except Exception as e:
+        print(f"⚠️  build_data.py failed, continuing with just nba_data.pkl: {e}")
+
+    # 2. Add the data files
+    print("\n📦 Adding nba_data.pkl and nba_dashboard/data to staging...")
+    success, output = run_git_command(["git", "add", "nba_data.pkl", "nba_dashboard/data"], cwd=script_dir)
     if not success:
         print(f"❌ Failed to add file: {output}")
         return False
-    print("✅ File staged")
+    print("✅ Files staged")
     
     # 3. Check if there are changes to commit
     success, output = run_git_command(["git", "diff", "--cached", "--quiet"], cwd=script_dir)
