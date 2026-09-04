@@ -23,6 +23,8 @@ def run_git_command(cmd: list, cwd: str = ".") -> tuple[bool, str]:
             cwd=cwd,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=30
         )
         return result.returncode == 0, result.stdout + result.stderr

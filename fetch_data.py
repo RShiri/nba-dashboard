@@ -1025,6 +1025,8 @@ def smart_update(force_refresh=False, player_key=None):
                 cwd=script_dir,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=60
             )
 
