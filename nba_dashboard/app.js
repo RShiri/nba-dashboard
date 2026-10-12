@@ -183,21 +183,42 @@ async function boot() {
     renderAll();
   });
 
-  document.getElementById("styleSwitch").addEventListener("click", () => {
-    const next = document.documentElement.getAttribute("data-style") === "a" ? "c" : "a";
-    document.documentElement.setAttribute("data-style", next);
-    try { localStorage.setItem("site-style", next); } catch (e) {}
-    renderAll(true);
-  });
-  document.getElementById("langSwitch").addEventListener("click", () => {
-    const next = lang() === "he" ? "en" : "he";
-    document.documentElement.setAttribute("lang", next);
-    document.documentElement.setAttribute("dir", next === "he" ? "rtl" : "ltr");
-    try { localStorage.setItem("site-lang", next); } catch (e) {}
-    renderAll(true);
-  });
+  // The shared portfolio bar (brand.js) owns the EN/HE and C/A switches; mirror its choice here.
+  window.addEventListener("sitestylechange", () => { syncPrefs(); renderAll(true); });
+  window.addEventListener("sitelangchange", () => { syncPrefs(); renderAll(true); });
+  syncPrefs();
 
   renderAll();
+}
+
+function syncPrefs() {
+  const h = document.documentElement;
+  const s = h.getAttribute("data-site-style") || h.getAttribute("data-style") || "c";
+  const l = h.getAttribute("data-site-lang") || h.getAttribute("lang") || "en";
+  h.setAttribute("data-style", s);
+  h.setAttribute("lang", l);
+  h.setAttribute("dir", l === "he" ? "rtl" : "ltr");
+  setAboutPanel();
+}
+
+// Content for the shared bar's "About this project" sheet, taken from the About the Project page.
+function setAboutPanel() {
+  const build = (code) => {
+    const tpl = document.createElement("template");
+    tpl.innerHTML = I18N_BLOCKS[code].project;
+    const kids = Array.from(tpl.content.children);
+    const intro = kids.find(k => k.tagName === "P");
+    const sections = [];
+    kids.forEach(k => {
+      if (k.tagName === "H3") sections.push({ h: k.textContent, p: "" });
+      else if (sections.length) sections[sections.length - 1].p += k.outerHTML;
+    });
+    return { title: I18N[code].page_project, intro: intro ? intro.innerHTML : "", sections };
+  };
+  if (!window.RS_ABOUT) {
+    window.RS_ABOUT = { en: build("en"), he: build("he") };
+    if (window.RSBrand) window.RSBrand.refresh();
+  }
 }
 
 function goPage(page) {

@@ -8,12 +8,15 @@
   <meta name="theme-color" content="#050b14" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=Barlow+Condensed:ital,wght@0,700;0,800;1,700;1,800;1,900&family=Barlow:wght@500;600;700&family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet" />
-  <script>/* same switches as rshiri.github.io: design C (HUD, default) / A (matchday), and English / Hebrew */
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,900&display=swap" rel="stylesheet" />
+  <!-- shared portfolio kit: the RAM/SHIRI bar with All projects, About, EN/HE and Style C/A,
+       the same switches and localStorage keys (site-style, site-lang) as every project page -->
+  <link rel="stylesheet" href="https://rshiri.github.io/assets/brand/brand.css" />
+  <script src="https://rshiri.github.io/assets/brand/brand.js"></script>
+  <script>/* mirror the kit's choice onto the attributes this dashboard's CSS uses, before first paint */
   (function () {
-    var s = "c", l = "en";
-    try { s = localStorage.getItem("site-style") === "a" ? "a" : "c"; l = localStorage.getItem("site-lang") === "he" ? "he" : "en"; } catch (e) {}
-    var h = document.documentElement;
+    var h = document.documentElement, s = h.getAttribute("data-site-style"), l = h.getAttribute("data-site-lang");
+    try { if (!s) s = localStorage.getItem("site-style") === "a" ? "a" : "c"; if (!l) l = localStorage.getItem("site-lang") === "he" ? "he" : "en"; } catch (e) { s = s || "c"; l = l || "en"; }
     h.setAttribute("data-style", s); h.setAttribute("lang", l); h.setAttribute("dir", l === "he" ? "rtl" : "ltr");
   })();</script>
   <link rel="stylesheet" href="styles.css" />
@@ -24,11 +27,6 @@
   <header class="topbar">
     <a class="brand" href="#dashboard"><span data-i18n="brand_a">Israeli NBA</span><i class="b2">/</i><span class="b2" data-i18n="brand_b">Analytics</span></a>
     <span class="tb-player" id="topbar-player"></span>
-    <div class="tb-actions">
-      <button class="switch" id="langSwitch" type="button" aria-label="Switch language"><b>EN</b><span aria-hidden="true">/</span><b>עב</b></button>
-      <button class="switch" id="styleSwitch" type="button" aria-label="Switch design"><span class="hide-sm" data-i18n="style">Style</span> <b>C</b><span aria-hidden="true">/</span><b>A</b></button>
-      <a class="home-link" href="https://rshiri.github.io/"><span class="hide-sm" aria-hidden="true">&larr; </span>Ram Shiri</a>
-    </div>
   </header>
 
   <div class="layout">

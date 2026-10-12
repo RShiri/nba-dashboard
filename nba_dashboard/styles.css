@@ -4,7 +4,7 @@
      C  "HUD"      deep navy, cyan hairlines and corner brackets, Chakra Petch over IBM Plex Sans
      A  "Matchday" carbon with diagonal stripes, lime signal, Barlow Condensed italic, chamfered plates
    The structure below is shared; each look only sets tokens and a few flourishes.
-   Hebrew (html[dir="rtl"]) falls back to Heebo for glyphs the display fonts don't carry.
+   Hebrew (html[dir="rtl"]) falls back to IBM Plex Sans Hebrew, loaded by the shared portfolio kit.
    =========================================================================== */
 html[data-style="c"] {
   --bg: #050b14;
@@ -26,8 +26,8 @@ html[data-style="c"] {
   --good: #4ade80;
   --pitch: #040912;
   --court-line: rgba(169, 198, 211, .55);
-  --font: "Chakra Petch", "Heebo", ui-sans-serif, system-ui, sans-serif;
-  --text: "IBM Plex Sans", "Heebo", ui-sans-serif, system-ui, sans-serif;
+  --font: "Chakra Petch", "IBM Plex Sans Hebrew", ui-sans-serif, system-ui, sans-serif;
+  --text: "IBM Plex Sans", "IBM Plex Sans Hebrew", ui-sans-serif, system-ui, sans-serif;
   --head-style: normal;
   --head-weight: 700;
   --head-track: .02em;
@@ -52,8 +52,8 @@ html[data-style="a"] {
   --good: #6bffa0;
   --pitch: #090a0d;
   --court-line: rgba(196, 201, 210, .5);
-  --font: "Barlow Condensed", "Heebo", "Arial Narrow", sans-serif;
-  --text: "Barlow", "Heebo", ui-sans-serif, system-ui, sans-serif;
+  --font: "Barlow Condensed", "IBM Plex Sans Hebrew", "Arial Narrow", sans-serif;
+  --text: "Barlow", "IBM Plex Sans Hebrew", ui-sans-serif, system-ui, sans-serif;
   --head-style: italic;
   --head-weight: 900;
   --head-track: .01em;
@@ -67,7 +67,7 @@ html, body { margin: 0; background: var(--bg); }
 body { color: var(--body); font: 400 15px/1.6 var(--text); -webkit-font-smoothing: antialiased; min-height: 100vh; overflow-x: hidden; }
 html[data-style="c"] body { background-image: radial-gradient(80% 40% at 80% 0%, rgba(77, 240, 255, .06), transparent 70%); background-repeat: no-repeat; }
 html[data-style="a"] body { background-image: repeating-linear-gradient(135deg, rgba(255, 255, 255, .022) 0 2px, transparent 2px 14px); font-weight: 500; }
-html[lang="he"] body { font-family: "Heebo", var(--text); }
+html[lang="he"] body { font-family: "IBM Plex Sans Hebrew", var(--text); }
 
 h1, h2, h3, h4 { font-family: var(--font); color: var(--ink); margin: 0 0 10px; font-weight: var(--head-weight); font-style: var(--head-style);
   letter-spacing: var(--head-track); text-transform: uppercase; line-height: 1.05; }
@@ -102,20 +102,6 @@ hr { border: none; border-top: 1px solid var(--line); margin: 28px 0; }
 html[data-style="c"] .brand { font-weight: 700; font-size: 15px; letter-spacing: .2em; }
 html[data-style="a"] .brand { font-style: italic; font-weight: 900; font-size: 24px; letter-spacing: .01em; }
 .tb-player { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.tb-actions { margin-inline-start: auto; display: flex; align-items: center; gap: 10px; }
-.switch { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; background: transparent; color: var(--muted);
-  border: 1px solid var(--line-strong); font: 600 12px/1 var(--font); letter-spacing: .14em; text-transform: uppercase; cursor: pointer; white-space: nowrap; }
-.switch b { color: var(--muted); font-weight: 700; }
-.switch:hover { border-color: var(--c); color: var(--ink); }
-html[data-style="c"] #styleSwitch b:first-of-type, html[data-style="a"] #styleSwitch b:last-of-type,
-html[lang="en"] #langSwitch b:first-of-type, html[lang="he"] #langSwitch b:last-of-type { color: var(--c); }
-#langSwitch b:last-of-type { font-family: "Heebo", sans-serif; letter-spacing: 0; }
-@media (min-width: 601px) { html[dir="rtl"] .home-link .hide-sm { display: inline-block; transform: scaleX(-1); } }
-.home-link { font: 600 13px/1 var(--font); letter-spacing: .06em; white-space: nowrap; color: var(--ink); padding: 8px 4px; }
-html[data-style="a"] .switch, html[data-style="a"] .home-link { font-style: italic; font-weight: 800; font-size: 14px; letter-spacing: .04em; }
-html[data-style="a"] .switch { transform: skewX(-12deg); }
-html[data-style="a"] .switch > * { transform: skewX(12deg); }
-
 /* ---------- layout ---------- */
 .layout { display: flex; align-items: flex-start; min-height: calc(100vh - 60px); }
 .sidebar { width: 272px; flex: 0 0 auto; position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto;
@@ -149,7 +135,7 @@ html[data-style="a"] .pc-name { font-size: 21px; }
 html[data-style="c"] .nav button.active { color: var(--c); border-color: var(--line-strong); background: var(--accent-soft); border-inline-start: 2px solid var(--c); }
 html[data-style="a"] .nav button { font-style: italic; font-weight: 800; font-size: 16px; letter-spacing: .03em; }
 html[data-style="a"] .nav button.active { background: var(--c); color: var(--accent-ink); }
-html[lang="he"] .nav button { letter-spacing: 0; font-family: "Heebo", var(--font); font-style: normal; font-weight: 700; }
+html[lang="he"] .nav button { letter-spacing: 0; font-family: "IBM Plex Sans Hebrew", var(--font); font-style: normal; font-weight: 700; }
 
 .status-block { font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }
 .status-block div { margin-bottom: 4px; }
@@ -218,7 +204,7 @@ table.data-table tr.highlight td { background: var(--c); color: var(--accent-ink
 html[data-style="a"] .tabs button { font-style: italic; font-weight: 800; font-size: 15px; letter-spacing: .03em; transform: skewX(-12deg); border-color: var(--line-strong); }
 html[data-style="a"] .tabs button > span { display: inline-block; transform: skewX(12deg); }
 html[data-style="a"] .tabs button[aria-pressed="true"] { background: var(--c); color: var(--accent-ink); border-color: var(--c); }
-html[lang="he"] .tabs button { letter-spacing: 0; font-family: "Heebo", var(--font); font-style: normal; }
+html[lang="he"] .tabs button { letter-spacing: 0; font-family: "IBM Plex Sans Hebrew", var(--font); font-style: normal; }
 
 .btn { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; background: transparent; color: var(--ink); border: 1px solid var(--line-strong);
   font: 600 13px/1 var(--font); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
@@ -238,7 +224,7 @@ html[lang="he"] .tabs button { letter-spacing: 0; font-family: "Heebo", var(--fo
 details.explain, details.scouting { margin-bottom: 20px; padding: 2px 16px; background: var(--panel); border: 1px solid var(--line); }
 details.explain summary, details.scouting summary { cursor: pointer; padding: 12px 0; font: 600 14px/1.3 var(--font); letter-spacing: .06em; text-transform: uppercase; color: var(--ink); }
 html[data-style="a"] details summary { font-style: italic; font-weight: 800; font-size: 17px; }
-html[lang="he"] details summary { letter-spacing: 0; font-family: "Heebo", var(--font); font-style: normal; }
+html[lang="he"] details summary { letter-spacing: 0; font-family: "IBM Plex Sans Hebrew", var(--font); font-style: normal; }
 details .body { padding-bottom: 14px; font-size: 14.5px; line-height: 1.65; max-width: 80ch; }
 details .body blockquote { margin: 12px 0; padding-inline-start: 12px; border-inline-start: 3px solid var(--c); color: var(--muted); font-style: italic; }
 details .body h4 { margin-top: 14px; }
@@ -282,14 +268,9 @@ dl.glossary dd { margin: 0; font-size: 14px; }
 @media (max-width: 600px) {
   .topbar { padding: 0 16px; gap: 8px; }
   .hide-sm { display: none; }
-  .switch { padding: 0 9px; letter-spacing: .06em; }
-  .tb-actions { gap: 6px; }
-  .brand .b2 { display: none; }
   .brand { min-width: 0; overflow: hidden; }
-  .home-link { padding: 8px 0; }
   html[data-style="c"] .brand { font-size: 12px; letter-spacing: .1em; }
   html[data-style="a"] .brand { font-size: 20px; }
-  html[data-style="a"] .switch, html[data-style="a"] .home-link { font-size: 13px; }
   .hero { padding: 14px; gap: 14px; }
   .hero img { width: 64px; height: 64px; }
   .kpi-grid { gap: 8px; }
@@ -304,6 +285,5 @@ dl.glossary dd { margin: 0; font-size: 14px; }
   .controls-row .control { flex: 1 1 140px; }
 }
 @media (max-width: 380px) {
-  .home-link { font-size: 12px; }
   html[data-style="c"] .brand i, html[data-style="a"] .brand i { margin: 0 2px; }
 }

@@ -35,7 +35,8 @@ A player switcher re-renders every page for whichever player is selected:
 - **About the Project** - A page that explains the data pipeline, every page and every metric
 
 ### 🎨 Design
-- Matches [rshiri.github.io](https://rshiri.github.io/): two looks with the same **Style C / A** switch as the portfolio (C = HUD, cyan on deep navy, Chakra Petch; A = Matchday, lime on carbon, Barlow Condensed). The choice is shared with the portfolio through the `site-style` localStorage key.
+- Uses the portfolio's shared bar (`assets/brand/brand.js` + `brand.css` from [rshiri.github.io](https://rshiri.github.io/)): the same RAM/SHIRI header, **All projects** link, **About this project** sheet, EN/עב switch and **Style C / A** switch as every other project page.
+- Two looks (C = HUD, cyan on deep navy, Chakra Petch; A = Matchday, lime on carbon, Barlow Condensed). The choice is shared with the portfolio through the `site-style` localStorage key.
 - **English / Hebrew** switch (`site-lang` key); Hebrew renders right-to-left.
 - Plotly charts read their colours and fonts from the active look's CSS tokens, so they restyle with the switch.
 - Works down to 375px wide: the sidebar collapses to player and page selectors, charts resize, no horizontal page scroll.
