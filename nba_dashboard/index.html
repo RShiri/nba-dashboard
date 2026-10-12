@@ -1,51 +1,66 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" dir="ltr" data-style="c">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Israeli NBA Analytics</title>
+  <title>Israeli NBA Analytics - Ram Shiri</title>
+  <meta name="description" content="Daily-updated analytics for every Israeli NBA player: game logs, career trends, shot maps and an All-Star comparison lab. Built by Ram Shiri." />
+  <meta name="theme-color" content="#050b14" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=Barlow+Condensed:ital,wght@0,700;0,800;1,700;1,800;1,900&family=Barlow:wght@500;600;700&family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <script>/* same switches as rshiri.github.io: design C (HUD, default) / A (matchday), and English / Hebrew */
+  (function () {
+    var s = "c", l = "en";
+    try { s = localStorage.getItem("site-style") === "a" ? "a" : "c"; l = localStorage.getItem("site-lang") === "he" ? "he" : "en"; } catch (e) {}
+    var h = document.documentElement;
+    h.setAttribute("data-style", s); h.setAttribute("lang", l); h.setAttribute("dir", l === "he" ? "rtl" : "ltr");
+  })();</script>
   <link rel="stylesheet" href="styles.css" />
   <script src="vendor/plotly.min.js"></script>
 </head>
 <body>
-  <div class="topbar">
-    <span class="dot"></span>
-    <span class="tb-title" id="topbar-title">Israeli NBA <span>Analytics</span></span>
-    <span class="tb-sub">360&deg; Performance Dashboard</span>
-  </div>
+  <a class="skip-link" href="#page-content" data-i18n="skip">Skip to content</a>
+  <header class="topbar">
+    <a class="brand" href="#dashboard"><span data-i18n="brand_a">Israeli NBA</span><i class="b2">/</i><span class="b2" data-i18n="brand_b">Analytics</span></a>
+    <span class="tb-player" id="topbar-player"></span>
+    <div class="tb-actions">
+      <button class="switch" id="langSwitch" type="button" aria-label="Switch language"><b>EN</b><span aria-hidden="true">/</span><b>עב</b></button>
+      <button class="switch" id="styleSwitch" type="button" aria-label="Switch design"><span class="hide-sm" data-i18n="style">Style</span> <b>C</b><span aria-hidden="true">/</span><b>A</b></button>
+      <a class="home-link" href="https://rshiri.github.io/"><span class="hide-sm" aria-hidden="true">&larr; </span>Ram Shiri</a>
+    </div>
+  </header>
 
   <div class="layout">
-    <aside class="sidebar">
-      <div class="brand-title">Israeli NBA Watch</div>
-      <div class="brand-sub">360&deg; Performance Analytics</div>
-
-      <label class="field-label" for="player-select">Player</label>
-      <select id="player-select"></select>
+    <aside class="sidebar" aria-label="Player and page">
+      <div class="side-row">
+        <div class="field">
+          <label class="field-label" for="player-select" data-i18n="player">Player</label>
+          <select id="player-select"></select>
+        </div>
+        <div class="field page-field">
+          <label class="field-label" for="page-select" data-i18n="page">Page</label>
+          <select id="page-select"></select>
+        </div>
+      </div>
 
       <div class="player-card" id="player-card"></div>
 
-      <ul class="nav" id="nav-list">
-        <li><button data-page="dashboard">Dashboard</button></li>
-        <li><button data-page="career">Career Analysis</button></li>
-        <li><button data-page="league">League Trends</button></li>
-        <li><button data-page="raw">Raw Data</button></li>
-        <li><button data-page="shots">Shot Maps</button></li>
-        <li><button data-page="deepdive">Research: Deep Dive</button></li>
-        <li><button data-page="about">About Me</button></li>
-      </ul>
+      <nav aria-label="Pages"><ul class="nav" id="nav-list"></ul></nav>
 
       <div class="status-block" id="status-block"></div>
 
       <div class="sidebar-footer">
-        <a href="https://github.com/RShiri/nba-dashboard" target="_blank">&#9733; View source on GitHub</a>
+        <a href="https://github.com/RShiri/nba-dashboard" target="_blank" rel="noopener" data-i18n="source">View source on GitHub</a>
       </div>
     </aside>
 
-    <main id="page-content">
-      <p style="color: var(--muted)">Loading&hellip;</p>
+    <main id="page-content" tabindex="-1">
+      <p class="muted">Loading&hellip;</p>
     </main>
   </div>
 
+  <script src="i18n.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
