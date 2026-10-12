@@ -118,6 +118,37 @@ def build_shot_chart_json(shot_df: pd.DataFrame) -> dict:
     return {"points": points, "zones": zone_stats}
 
 
+def patch_current_season(career: pd.DataFrame, logs: pd.DataFrame, current_season: str) -> pd.DataFrame:
+    if career is None or career.empty or logs is None or logs.empty or "SEASON_ID" not in career.columns:
+        return career
+    career["SEASON_ID"] = career["SEASON_ID"].astype(str)
+    mask = career["SEASON_ID"] == current_season
+    if not mask.any():
+        return career
+    idx = career.index[mask][0]
+    true_gp = len(logs)
+    if true_gp < career.at[idx, "GP"]:
+        return career
+
+    def ratio(made, att):
+        return float(logs[made].sum() / logs[att].sum()) if logs[att].sum() > 0 else 0.0
+
+    updated = {
+        "GP": true_gp, "GS": true_gp,
+        "MIN": logs["MIN"].mean() if "MIN" in logs.columns else 0,
+        "PTS": logs["PTS"].mean(), "REB": logs["REB"].mean(), "AST": logs["AST"].mean(),
+        "STL": logs["STL"].mean() if "STL" in logs.columns else 0,
+        "BLK": logs["BLK"].mean() if "BLK" in logs.columns else 0,
+        "TOV": logs["TOV"].mean() if "TOV" in logs.columns else 0,
+        "FG_PCT": ratio("FGM", "FGA"), "FG3_PCT": ratio("FG3M", "FG3A"), "FT_PCT": ratio("FTM", "FTA"),
+    }
+    for col, val in updated.items():
+        if col in career.columns:
+            career[col] = career[col].astype(float) if col not in ("GP", "GS") else career[col]
+            career.at[idx, col] = val
+    return career
+
+
 # -----------------------------
 # Main export
 # -----------------------------
@@ -158,7 +189,10 @@ def build():
 
         career = pd.DataFrame()
         if career_basic is not None and not career_basic.empty:
-            career = career_basic.copy()
+            # Same as app.py's patch_career_stats: the career endpoint lags during the season,
+            # so the current-season row is refreshed from the game logs when they have as many games or more.
+            current_logs = pdata.get(f"game_logs_{fetch_data.season_key(current_season)}", pd.DataFrame())
+            career = patch_current_season(career_basic.copy(), current_logs, current_season)
             if career_adv is not None and not career_adv.empty and "SEASON_ID" in career_adv.columns:
                 adv_cols = [c for c in ["SEASON_ID", "NET_RATING", "AST_TO", "TS_PCT", "USG_PCT"] if c in career_adv.columns]
                 career = career.merge(career_adv[adv_cols], on="SEASON_ID", how="left")

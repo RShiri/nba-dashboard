@@ -1,24 +1,25 @@
 # 🏀 Israeli NBA Players Analytics Dashboard
 
-> **Real-time NBA performance analytics for every active Israeli NBA player** — Deni Avdija, Ben Saraf, Danny Wolf, and Emanuel Sharp — automatically updated after every game.
+> **Daily-updated NBA analytics for every active Israeli NBA player** — Deni Avdija, Ben Saraf, Danny Wolf, and Emanuel Sharp.
 
-This project ships as **two parallel front ends** sharing the same `nba_data.pkl`:
+**Live site: https://rshiri.github.io/nba-dashboard/**
 
-| | URL | Stack | Notes |
-|---|---|---|---|
-| **Static site** | **https://rshiri.github.io/nba-dashboard/** | Plain HTML/CSS/JS + Plotly.js, served by GitHub Pages | No server, no cold start — just files. Reads pre-built JSON under `nba_dashboard/data/`. |
-| **Streamlit app** | **https://nba-dashboard-ramshiri.streamlit.app/** | Python + Streamlit | Adds the live "quick refresh" on-page-load check and manual refresh buttons. |
+A static site on GitHub Pages: plain HTML/CSS/JS with a vendored copy of Plotly.js, reading pre-built JSON from `nba_dashboard/data/`. No server and no cold start. A GitHub Action fetches fresh data from the NBA stats API every morning and rebuilds the JSON.
 
-If the Streamlit app feels slow to spin up (Streamlit Community Cloud sleeps idle apps), the GitHub Pages link is the faster option — it's genuinely static, so there's nothing to wake up.
+The original Streamlit version (`app.py`) is still in the repo and runs locally (see below); the static site is the primary front end.
 
-[![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=Streamlit&logoColor=white)](https://share.streamlit.io/)
+| Dashboard | Shot maps | Deep dive |
+|---|---|---|
+| ![Dashboard](docs/screenshots/dashboard-c-1440.jpg) | ![Shot maps](docs/screenshots/shots-c-1440.jpg) | ![Deep dive](docs/screenshots/deepdive-c-1440.jpg) |
+
 [![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Plotly](https://img.shields.io/badge/Plotly.js-3F4F75?style=for-the-badge&logo=plotly&logoColor=white)](https://plotly.com/javascript/)
 [![NBA API](https://img.shields.io/badge/NBA-API-orange?style=for-the-badge)](https://github.com/swar/nba_api)
 
 ## 🌟 Features
 
 ### 👥 Every Active Israeli NBA Player
-A sidebar player switcher re-renders every page for whichever player is selected:
+A player switcher re-renders every page for whichever player is selected:
 - **Deni Avdija** — Portland Trail Blazers, 2026 NBA All-Star
 - **Ben Saraf** — Brooklyn Nets
 - **Danny Wolf** — Brooklyn Nets
@@ -26,17 +27,18 @@ A sidebar player switcher re-renders every page for whichever player is selected
 
 ### 📊 Comprehensive Analytics
 - **At-a-glance KPI cards** - Season PPG / RPG / APG / MIN / FG% / 3P% / FT% / GP with season-over-season deltas
-- **Career Progression** - Track each player's evolution across all NBA seasons
-- **Shot Maps** - Scatter shot charts and a white-outlined zone-efficiency map (every shot is attributed to a court section)
+- **Career Progression** - Per game, per 36, usage rate and true shooting across every NBA season
+- **Shot Maps** - Scatter shot charts and a 14-zone efficiency map, single season or side-by-side compare, PNG download
 - **Elite Comparison** - Head-to-head stats vs. a curated All-Star cohort (frozen 24/25 benchmark **and** live current-season "race")
 - **League Trends** - Advanced metrics (drives, fouls drawn, heliocentric analysis) shared across the whole league
-- **Deep Dive Research** - Triple Threat charts, usage-adjusted projections
+- **Deep Dive Research** - Triple Threat charts, separation chart, radar, offensive engine, usage-adjusted What-If
+- **About the Project** - A page that explains the data pipeline, every page and every metric
 
 ### 🎨 Design
-- **"Broadcast Kinetic" dark theme**, ported from the [XLALIGA dashboard](https://rshiri.github.io/XLALIGA/) — carbon ground `#0c0d10`, ONE signal colour (lime `#d7ff3a`), red as the only other semantic colour, condensed/uppercase Barlow Condensed display type, no border radius anywhere
-- Configured in [`.streamlit/config.toml`](.streamlit/config.toml) + a custom CSS layer + a unified dark Plotly template
-- Hero banner, sticky top brand bar, plate-style KPI cards, sharp-edged tabs, styled sidebar player card with a switcher
-- **"View source on GitHub" links** in the sidebar footer and the About Me page
+- Matches [rshiri.github.io](https://rshiri.github.io/): two looks with the same **Style C / A** switch as the portfolio (C = HUD, cyan on deep navy, Chakra Petch; A = Matchday, lime on carbon, Barlow Condensed). The choice is shared with the portfolio through the `site-style` localStorage key.
+- **English / Hebrew** switch (`site-lang` key); Hebrew renders right-to-left.
+- Plotly charts read their colours and fonts from the active look's CSS tokens, so they restyle with the switch.
+- Works down to 375px wide: the sidebar collapses to player and page selectors, charts resize, no horizontal page scroll.
 
 ### 🗓️ Season-Proof (auto-rolls each year)
 - The current NBA season is **computed from the date**, not hardcoded — it auto-advances to `2026-27` the moment October 2026 arrives, then `2027-28`, and so on
@@ -74,15 +76,19 @@ A sidebar player switcher re-renders every page for whichever player is selected
    ```
    Or just one player while iterating: `python fetch_data.py --player ben_saraf`
 
-4. **Run the dashboard**
+4. **Build the static site data and serve it**
+   ```bash
+   python build_data.py
+   python -m http.server 8000
+   ```
+   Open `http://localhost:8000/` (it redirects into `nba_dashboard/`). Deep links work as `#<page>/<player>`, e.g. `#shots/ben_saraf`.
+
+5. **Optional: the legacy Streamlit app**
    ```bash
    python -m streamlit run app.py
    ```
    > On Windows, if `python` opens the Microsoft Store, use the launcher instead: `py -m streamlit run app.py`.
-   > To preview offline without the on-load NBA API check: `SKIP_AUTO_UPDATE=1 py -m streamlit run app.py` (PowerShell: `$env:SKIP_AUTO_UPDATE=1; py -m streamlit run app.py`).
-
-5. **Open in browser**
-   - Navigate to `http://localhost:8501`
+   > To preview offline without the on-load NBA API check: `SKIP_AUTO_UPDATE=1 py -m streamlit run app.py`. It serves on `http://localhost:8501`.
 
 ---
 
@@ -90,15 +96,16 @@ A sidebar player switcher re-renders every page for whichever player is selected
 
 ```
 nba-dashboard/
-├── app.py                     # Main Streamlit dashboard (player switcher + theme + dynamic seasons)
+├── app.py                     # Legacy Streamlit dashboard (kept; the static site is the primary front end)
 ├── fetch_data.py              # NBA API data fetcher (multi-player) + auto-update & season logic
 ├── build_data.py              # Exports nba_data.pkl -> nba_dashboard/data/*.json for the static site
 ├── auto_update.py             # Git automation script (also rebuilds + commits the static site data)
 ├── nba_data.pkl               # Cached NBA data (auto-generated) — keyed by player under "players"
 ├── index.html                 # Root redirect -> nba_dashboard/index.html (for GitHub Pages)
 ├── nba_dashboard/              # Static site (GitHub Pages) — plain HTML/CSS/JS, no server
-│   ├── index.html              # Page shell (sidebar, topbar, #page-content mount point)
-│   ├── styles.css               # Broadcast Kinetic theme, ported 1:1 from the Streamlit CSS
+│   ├── index.html              # Page shell (top bar with style + language switches, sidebar, #page-content)
+│   ├── styles.css               # Both portfolio looks (C / A) as CSS tokens, RTL-aware, responsive
+│   ├── i18n.js                   # English + Hebrew strings and long-form page text
 │   ├── app.js                    # Router + every page's rendering logic (vanilla JS + Plotly.js)
 │   ├── vendor/plotly.min.js       # Vendored Plotly.js (no runtime CDN dependency)
 │   └── data/                      # Generated JSON (meta, shared, zones, one file per player)
@@ -106,6 +113,7 @@ nba-dashboard/
 ├── .streamlit/config.toml     # Dark theme (Broadcast Kinetic palette)
 ├── .github/workflows/         # Scheduled full data refresh (all players + shared league data + static JSON)
 ├── profile_pic.png            # About Me photo
+├── docs/screenshots/          # Screenshots used in this README
 ├── DEPLOYMENT_GUIDE.md        # Streamlit Cloud deployment instructions
 └── README.md                  # This file
 ```
@@ -134,7 +142,7 @@ graph LR
     C -->|No| E[Nothing — instant page load]
     F[GitHub Action, daily] --> G[Full smart_update: all players + league data]
     G --> H[Commit nba_data.pkl]
-    H --> I[Streamlit Cloud auto-redeploys]
+    H --> I[build_data.py rebuilds the JSON; GitHub Pages serves it]
 ```
 
 ### Smart Checking Logic
@@ -175,8 +183,8 @@ Because the season string, pickle keys (`game_logs_2026_27`, …), the season ti
 
 Every player's stats are compared against a curated cohort of All-Stars & risers, defined
 by `ALL_STAR_NAMES` in [`fetch_data.py`](fetch_data.py) — the 2026 NBA All-Star Game
-roster (Deni Avdija made the team as a Western reserve, so he's excluded from his own
-comparison cohort at render time):
+roster (Deni Avdija made the team as a Western reserve, so his own row is dropped from the
+ranking table and separation chart, where he would otherwise appear twice):
 
 Giannis Antetokounmpo · Jaylen Brown · Jalen Brunson · Cade Cunningham · Tyrese Maxey · Stephen Curry · Luka Dončić · Shai Gilgeous-Alexander · Nikola Jokić · Victor Wembanyama · Anthony Edwards · Jamal Murray · Chet Holmgren · Kevin Durant · Devin Booker · LeBron James · Scottie Barnes · Jalen Johnson · Norman Powell · Karl-Anthony Towns · Pascal Siakam · Donovan Mitchell · Jalen Duren · Deni Avdija
 
@@ -186,12 +194,12 @@ Giannis Antetokounmpo · Jaylen Brown · Jalen Brunson · Cade Cunningham · Tyr
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Streamlit
+- **Frontend**: Plain HTML/CSS/JS + Plotly.js on GitHub Pages (legacy: Streamlit)
 - **Data Source**: [nba_api](https://github.com/swar/nba_api)
 - **Visualization**: Plotly
 - **Data Processing**: Pandas, NumPy
 - **Automation**: GitHub Actions (scheduled), Python subprocess + Git (auto-commit)
-- **Deployment**: Streamlit Community Cloud
+- **Deployment**: GitHub Pages (`master` branch, repository root)
 
 ---
 
@@ -211,27 +219,13 @@ requests
 
 ## 🌐 Deployment
 
-### Streamlit Cloud (Recommended)
+### GitHub Pages (primary)
 
-1. **Push to GitHub**
-   ```bash
-   git add .
-   git commit -m "Update"
-   git push origin master
-   ```
+The site is served straight from the repository: **Settings → Pages → Deploy from a branch → `master` / `/ (root)`**. The root `index.html` redirects to `nba_dashboard/index.html`, and every fetch is relative, so it works under the `/nba-dashboard/` path. There is nothing to build: the daily workflow commits fresh JSON and Pages republishes.
 
-2. **Deploy on Streamlit Cloud**
-   - Go to [share.streamlit.io](https://share.streamlit.io/)
-   - Connect your GitHub repository
-   - Select `app.py` as the main file
-   - Click **Deploy**
+### Streamlit Cloud (legacy)
 
-3. **Auto-updates enabled!**
-   - The GitHub Action refreshes every player daily; the live app also does a quick
-     per-visitor check for the selected player
-   - No manual intervention required
-
-See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for detailed instructions.
+The Streamlit app still deploys the old way (`app.py` as the main file on share.streamlit.io), but it is no longer the advertised front end. See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for detailed instructions.
 
 ---
 
