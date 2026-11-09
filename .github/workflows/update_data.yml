@@ -46,6 +46,9 @@ jobs:
             python fetch_data.py
           fi
 
+      - name: Fill the current season from ESPN if stats.nba.com returned nothing
+        run: python espn_refresh.py
+
       - name: Rebuild static site JSON
         run: python build_data.py
 

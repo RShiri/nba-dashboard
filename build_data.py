@@ -134,7 +134,7 @@ def patch_current_season(career: pd.DataFrame, logs: pd.DataFrame, current_seaso
         return float(logs[made].sum() / logs[att].sum()) if logs[att].sum() > 0 else 0.0
 
     updated = {
-        "GP": true_gp, "GS": true_gp,
+        "GP": true_gp,
         "MIN": logs["MIN"].mean() if "MIN" in logs.columns else 0,
         "PTS": logs["PTS"].mean(), "REB": logs["REB"].mean(), "AST": logs["AST"].mean(),
         "STL": logs["STL"].mean() if "STL" in logs.columns else 0,
